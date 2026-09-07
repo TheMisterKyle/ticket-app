@@ -17,7 +17,7 @@
                     Background="#F5F0E6" BorderBrush="#123B29">
                 <Grid>
                     <StackPanel VerticalAlignment="Center">
-                        <TextBlock x:Name="Eyebrow" Text="YOU GOT A" FontSize="22" FontWeight="Bold" CharacterSpacing="180"/>
+                        <TextBlock x:Name="Eyebrow" Text="YOU GOT A" FontSize="22" FontWeight="Bold"/>
                         <TextBlock x:Name="Headline" Text="GREEN TICKET!" FontSize="62" FontWeight="Black"/>
                     </StackPanel>
                     <StackPanel HorizontalAlignment="Right" VerticalAlignment="Center">

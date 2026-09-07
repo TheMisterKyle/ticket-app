@@ -10,7 +10,7 @@
             <RowDefinition Height="Auto"/><RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
-        <TextBlock Text="TICKET TOSS PROJECTOR" FontSize="21" FontWeight="Black" CharacterSpacing="100"/>
+        <TextBlock Text="TICKET TOSS PROJECTOR" FontSize="21" FontWeight="Black"/>
         <StackPanel Grid.Row="1" Margin="0,24,0,0">
             <TextBlock Text="Projector display" Foreground="#A9ADB5" Margin="0,0,0,7"/>
             <ComboBox x:Name="DisplayPicker" Height="38" FontSize="15"/>
