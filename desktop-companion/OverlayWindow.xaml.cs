@@ -58,11 +58,14 @@ public partial class OverlayWindow : Window
         Ticket.Visibility = outcome is Outcome.GreenWin or Outcome.RedWin ? Visibility.Visible : Visibility.Collapsed;
         MissIcon.Visibility = Ticket.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible;
         Headline.Text = green ? "GREEN TICKET!" : "RED TICKET!";
-        var ink = (Color)ColorConverter.ConvertFromString(green ? "#123B29" : "#481D22");
+        var ink = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(
+            green ? "#123B29" : "#481D22");
         Ticket.BorderBrush = new SolidColorBrush(ink);
         Eyebrow.Foreground = Headline.Foreground = new SolidColorBrush(ink);
         MissIcon.Text = outcome == Outcome.GreenMiss ? "☹" : "💨";
-        MissIcon.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(green ? "#37C977" : "#F5F0E6"));
+        MissIcon.Foreground = new SolidColorBrush(
+            (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(
+                green ? "#37C977" : "#F5F0E6"));
     }
 
     private void Animate(Outcome outcome)
@@ -103,7 +106,7 @@ public partial class OverlayWindow : Window
 
     private void PlayAsset(string name)
     {
-        player.Open(new Uri(Path.Combine(AppContext.BaseDirectory, "Assets", name)));
+        player.Open(new Uri(System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", name)));
         player.Volume = 1;
         player.Play();
     }
