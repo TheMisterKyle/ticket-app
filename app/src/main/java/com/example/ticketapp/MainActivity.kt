@@ -91,7 +91,10 @@ private sealed interface AppScreen {
         val ticket: TicketColour?,
         val attemptedColour: TicketColour,
     ) : AppScreen
-    data class Result(val ticket: TicketColour?) : AppScreen
+    data class Result(
+        val ticket: TicketColour?,
+        val attemptedColour: TicketColour,
+    ) : AppScreen
 }
 
 class MainActivity : ComponentActivity() {
@@ -186,14 +189,20 @@ private fun TicketApp(
 
         is AppScreen.Rolling -> {
             androidx.compose.runtime.LaunchedEffect(current) {
-                delay(1_000)
+                delay(950)
                 onPlayOutcomeSound(current.ticket, current.attemptedColour)
-                screen = AppScreen.Result(ticket = current.ticket)
+                screen = AppScreen.Result(
+                    ticket = current.ticket,
+                    attemptedColour = current.attemptedColour,
+                )
             }
             ReadyScreen(onRoll = { _, _ -> })
         }
 
-        is AppScreen.Result -> ResultScreen(current.ticket) {
+        is AppScreen.Result -> ResultScreen(
+            ticket = current.ticket,
+            attemptedColour = current.attemptedColour,
+        ) {
             screen = AppScreen.Ready
         }
     }
@@ -442,7 +451,11 @@ private fun GestureTrack(
 }
 
 @Composable
-private fun ResultScreen(ticket: TicketColour?, onReset: () -> Unit) {
+private fun ResultScreen(
+    ticket: TicketColour?,
+    attemptedColour: TicketColour,
+    onReset: () -> Unit,
+) {
     val haptics = LocalHapticFeedback.current
     val resultScale = remember(ticket) { Animatable(if (ticket == null) 0.88f else 0.68f) }
     val resultRotation = remember(ticket) {
@@ -508,7 +521,11 @@ private fun ResultScreen(ticket: TicketColour?, onReset: () -> Unit) {
             .padding(28.dp),
         contentAlignment = Alignment.Center,
     ) {
-        ResultEffects(ticket = ticket, progress = effectProgress.value)
+        ResultEffects(
+            ticket = ticket,
+            attemptedColour = attemptedColour,
+            progress = effectProgress.value,
+        )
 
         Column(
             modifier = Modifier.graphicsLayer {
@@ -525,9 +542,13 @@ private fun ResultScreen(ticket: TicketColour?, onReset: () -> Unit) {
         ) {
             if (ticket == null) {
                 Text(
-                    text = "×",
-                    color = Muted,
-                    fontSize = 116.sp,
+                    text = if (attemptedColour == TicketColour.GREEN) "☹" else "💨",
+                    color = if (attemptedColour == TicketColour.GREEN) {
+                        Green.copy(alpha = 0.72f)
+                    } else {
+                        Cream.copy(alpha = 0.82f)
+                    },
+                    fontSize = if (attemptedColour == TicketColour.GREEN) 104.sp else 92.sp,
                     fontWeight = FontWeight.Light,
                 )
                 Text(
@@ -553,7 +574,11 @@ private fun ResultScreen(ticket: TicketColour?, onReset: () -> Unit) {
 }
 
 @Composable
-private fun ResultEffects(ticket: TicketColour?, progress: Float) {
+private fun ResultEffects(
+    ticket: TicketColour?,
+    attemptedColour: TicketColour,
+    progress: Float,
+) {
     Canvas(Modifier.fillMaxSize()) {
         val centre = Offset(size.width / 2f, size.height * 0.46f)
         val fade = (1f - progress).coerceIn(0f, 1f)
@@ -599,17 +624,31 @@ private fun ResultEffects(ticket: TicketColour?, progress: Float) {
             }
 
             null -> {
-                repeat(12) { index ->
-                    val angle = (index / 12f) * PI.toFloat() * 2f
-                    val distance = 50f + progress * (55f + (index % 3) * 17f)
-                    drawCircle(
-                        color = Muted.copy(alpha = fade * 0.34f),
-                        radius = 8f + progress * 15f,
-                        center = Offset(
-                            centre.x + cos(angle) * distance,
-                            centre.y + sin(angle) * distance,
-                        ),
-                    )
+                if (attemptedColour == TicketColour.GREEN) {
+                    repeat(14) { index ->
+                        val spread = (index - 6.5f) * 24f
+                        drawCircle(
+                            color = Green.copy(alpha = fade * 0.26f),
+                            radius = 5f + (index % 3) * 3f,
+                            center = Offset(
+                                centre.x + spread,
+                                centre.y + 72f + progress * (55f + (index % 4) * 18f),
+                            ),
+                        )
+                    }
+                } else {
+                    repeat(12) { index ->
+                        val angle = (index / 12f) * PI.toFloat() * 2f
+                        val distance = 55f + progress * (65f + (index % 3) * 18f)
+                        drawCircle(
+                            color = Cream.copy(alpha = fade * 0.30f),
+                            radius = 8f + progress * 14f,
+                            center = Offset(
+                                centre.x + cos(angle) * distance + progress * 28f,
+                                centre.y + sin(angle) * distance - progress * 24f,
+                            ),
+                        )
+                    }
                 }
             }
         }
