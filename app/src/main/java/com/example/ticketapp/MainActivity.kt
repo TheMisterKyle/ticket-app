@@ -1,13 +1,17 @@
 package com.example.ticketapp
 
+import android.media.AudioAttributes
+import android.media.SoundPool
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -35,6 +39,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
@@ -56,7 +61,11 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.example.ticketapp.ui.theme.TicketAppTheme
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlin.math.PI
+import kotlin.math.cos
 import kotlin.math.roundToInt
+import kotlin.math.sin
 import kotlin.random.Random
 
 private val greenProbabilitySteps = listOf(0.15f, 0.35f, 0.60f, 0.80f, 1.00f)
@@ -82,17 +91,40 @@ private sealed interface AppScreen {
 }
 
 class MainActivity : ComponentActivity() {
+    private lateinit var soundPool: SoundPool
+    private var greenSound = 0
+    private var redSound = 0
+    private var missSound = 0
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        soundPool = SoundPool.Builder()
+            .setMaxStreams(2)
+            .setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .build(),
+            )
+            .build()
+        greenSound = soundPool.load(this, R.raw.green_win, 1)
+        redSound = soundPool.load(this, R.raw.red_win, 1)
+        missSound = soundPool.load(this, R.raw.no_ticket, 1)
+
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         enableEdgeToEdge()
         enterImmersiveMode()
 
         setContent {
             TicketAppTheme(dynamicColor = false) {
-                TicketApp()
+                TicketApp(onPlaySound = ::playOutcomeSound)
             }
         }
+    }
+
+    override fun onDestroy() {
+        soundPool.release()
+        super.onDestroy()
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
@@ -108,16 +140,27 @@ class MainActivity : ComponentActivity() {
                 WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         }
     }
+
+    private fun playOutcomeSound(ticket: TicketColour?) {
+        val sound = when (ticket) {
+            TicketColour.GREEN -> greenSound
+            TicketColour.RED -> redSound
+            null -> missSound
+        }
+        soundPool.play(sound, 0.85f, 0.85f, 1, 0, 1f)
+    }
 }
 
 @Composable
-private fun TicketApp() {
+private fun TicketApp(onPlaySound: (TicketColour?) -> Unit) {
     var screen by remember { mutableStateOf<AppScreen>(AppScreen.Ready) }
 
     when (val current = screen) {
         AppScreen.Ready -> ReadyScreen { colour, probability ->
             val won = Random.nextFloat() < probability
-            screen = AppScreen.Result(ticket = colour.takeIf { won })
+            val result = colour.takeIf { won }
+            onPlaySound(result)
+            screen = AppScreen.Result(ticket = result)
         }
 
         is AppScreen.Result -> ResultScreen(current.ticket) {
@@ -370,7 +413,17 @@ private fun GestureTrack(
 @Composable
 private fun ResultScreen(ticket: TicketColour?, onReset: () -> Unit) {
     val haptics = LocalHapticFeedback.current
-    val resultScale = remember(ticket) { Animatable(0.82f) }
+    val resultScale = remember(ticket) { Animatable(if (ticket == null) 0.88f else 0.68f) }
+    val resultRotation = remember(ticket) {
+        Animatable(
+            when (ticket) {
+                TicketColour.GREEN -> -7f
+                TicketColour.RED -> 7f
+                null -> 13f
+            },
+        )
+    }
+    val effectProgress = remember(ticket) { Animatable(0f) }
     val background = when (ticket) {
         TicketColour.GREEN -> Green
         TicketColour.RED -> Red
@@ -390,13 +443,30 @@ private fun ResultScreen(ticket: TicketColour?, onReset: () -> Unit) {
             delay(80)
             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
         }
-        resultScale.animateTo(
-            targetValue = 1f,
-            animationSpec = spring(
-                dampingRatio = Spring.DampingRatioMediumBouncy,
-                stiffness = Spring.StiffnessMedium,
-            ),
-        )
+        launch {
+            effectProgress.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(durationMillis = 900, easing = FastOutSlowInEasing),
+            )
+        }
+        launch {
+            resultRotation.animateTo(
+                targetValue = 0f,
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                    stiffness = Spring.StiffnessMediumLow,
+                ),
+            )
+        }
+        launch {
+            resultScale.animateTo(
+                targetValue = 1f,
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                    stiffness = Spring.StiffnessMedium,
+                ),
+            )
+        }
     }
 
     Box(
@@ -407,11 +477,18 @@ private fun ResultScreen(ticket: TicketColour?, onReset: () -> Unit) {
             .padding(28.dp),
         contentAlignment = Alignment.Center,
     ) {
+        ResultEffects(ticket = ticket, progress = effectProgress.value)
+
         Column(
             modifier = Modifier.graphicsLayer {
                 scaleX = resultScale.value
                 scaleY = resultScale.value
                 alpha = resultScale.value.coerceIn(0f, 1f)
+                rotationZ = resultRotation.value
+                if (ticket == TicketColour.RED) {
+                    translationX = sin(effectProgress.value * PI.toFloat() * 10f) *
+                        (1f - effectProgress.value) * 13f
+                }
             },
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
@@ -440,6 +517,70 @@ private fun ResultScreen(ticket: TicketColour?, onReset: () -> Unit) {
                 fontWeight = FontWeight.Bold,
                 letterSpacing = 2.sp,
             )
+        }
+    }
+}
+
+@Composable
+private fun ResultEffects(ticket: TicketColour?, progress: Float) {
+    Canvas(Modifier.fillMaxSize()) {
+        val centre = Offset(size.width / 2f, size.height * 0.46f)
+        val fade = (1f - progress).coerceIn(0f, 1f)
+
+        when (ticket) {
+            TicketColour.GREEN -> {
+                val colours = listOf(Cream, GreenDark, Color(0xFFFFD166), Color(0xFF6EC5FF))
+                repeat(46) { index ->
+                    val angle = Math.toRadians(index * 137.5).toFloat()
+                    val distance = (90f + (index % 8) * 31f) * progress
+                    val gravity = progress * progress * (80f + (index % 5) * 13f)
+                    val particleCentre = Offset(
+                        x = centre.x + cos(angle) * distance,
+                        y = centre.y + sin(angle) * distance + gravity,
+                    )
+                    drawRect(
+                        color = colours[index % colours.size].copy(alpha = fade),
+                        topLeft = Offset(particleCentre.x - 4f, particleCentre.y - 8f),
+                        size = Size(width = 8f, height = 16f),
+                    )
+                }
+            }
+
+            TicketColour.RED -> {
+                repeat(22) { index ->
+                    val angle = (index / 22f) * PI.toFloat() * 2f
+                    val inner = 150f + progress * 32f
+                    val outer = inner + 48f * fade
+                    drawLine(
+                        color = if (index % 2 == 0) Cream.copy(alpha = fade * 0.72f)
+                        else RedDark.copy(alpha = fade * 0.72f),
+                        start = Offset(
+                            centre.x + cos(angle) * inner,
+                            centre.y + sin(angle) * inner,
+                        ),
+                        end = Offset(
+                            centre.x + cos(angle) * outer,
+                            centre.y + sin(angle) * outer,
+                        ),
+                        strokeWidth = if (index % 2 == 0) 7f else 4f,
+                    )
+                }
+            }
+
+            null -> {
+                repeat(12) { index ->
+                    val angle = (index / 12f) * PI.toFloat() * 2f
+                    val distance = 50f + progress * (55f + (index % 3) * 17f)
+                    drawCircle(
+                        color = Muted.copy(alpha = fade * 0.34f),
+                        radius = 8f + progress * 15f,
+                        center = Offset(
+                            centre.x + cos(angle) * distance,
+                            centre.y + sin(angle) * distance,
+                        ),
+                    )
+                }
+            }
         }
     }
 }
