@@ -102,7 +102,7 @@ class MainActivity : ComponentActivity() {
             .setMaxStreams(2)
             .setAudioAttributes(
                 AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
+                    .setUsage(AudioAttributes.USAGE_GAME)
                     .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                     .build(),
             )
@@ -147,7 +147,7 @@ class MainActivity : ComponentActivity() {
             TicketColour.RED -> redSound
             null -> missSound
         }
-        soundPool.play(sound, 0.85f, 0.85f, 1, 0, 1f)
+        soundPool.play(sound, 1f, 1f, 1, 0, 1f)
     }
 }
 
@@ -343,12 +343,12 @@ private fun GestureTrack(
     onReleased: (Int) -> Unit,
 ) {
     val density = LocalDensity.current
-    val stepDistancePx = with(density) { 28.dp.toPx() }
+    val stepDistancePx = with(density) { 40.dp.toPx() }
 
     Box(
         modifier = Modifier
-            .width(54.dp)
-            .height(168.dp)
+            .width(66.dp)
+            .height(232.dp)
             .semantics { contentDescription = accessibilityLabel }
             .pointerInput(Unit) {
                 awaitEachGesture {
