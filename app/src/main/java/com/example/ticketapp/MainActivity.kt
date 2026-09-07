@@ -5,6 +5,9 @@ import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -19,9 +22,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -38,8 +39,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.consume
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -47,13 +50,13 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.example.ticketapp.ui.theme.TicketAppTheme
+import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 import kotlin.random.Random
 
@@ -368,6 +371,7 @@ private fun GestureTrack(
 @Composable
 private fun ResultScreen(ticket: TicketColour?, onReset: () -> Unit) {
     val haptics = LocalHapticFeedback.current
+    val resultScale = remember(ticket) { Animatable(0.82f) }
     val background = when (ticket) {
         TicketColour.GREEN -> Green
         TicketColour.RED -> Red
@@ -380,9 +384,20 @@ private fun ResultScreen(ticket: TicketColour?, onReset: () -> Unit) {
     }
 
     androidx.compose.runtime.LaunchedEffect(ticket) {
-        if (ticket != null) {
+        if (ticket == null) {
+            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+        } else {
+            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+            delay(80)
             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
         }
+        resultScale.animateTo(
+            targetValue = 1f,
+            animationSpec = spring(
+                dampingRatio = Spring.DampingRatioMediumBouncy,
+                stiffness = Spring.StiffnessMedium,
+            ),
+        )
     }
 
     Box(
@@ -393,7 +408,14 @@ private fun ResultScreen(ticket: TicketColour?, onReset: () -> Unit) {
             .padding(28.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(
+            modifier = Modifier.graphicsLayer {
+                scaleX = resultScale.value
+                scaleY = resultScale.value
+                alpha = resultScale.value.coerceIn(0f, 1f)
+            },
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
             if (ticket == null) {
                 Text(
                     text = "×",
@@ -409,25 +431,7 @@ private fun ResultScreen(ticket: TicketColour?, onReset: () -> Unit) {
                     textAlign = TextAlign.Center,
                 )
             } else {
-                Canvas(Modifier.size(width = 260.dp, height = 132.dp)) {
-                    drawRoundRect(
-                        color = foreground.copy(alpha = 0.14f),
-                        cornerRadius = CornerRadius(24.dp.toPx()),
-                    )
-                    drawRoundRect(
-                        color = foreground.copy(alpha = 0.62f),
-                        cornerRadius = CornerRadius(24.dp.toPx()),
-                        style = Stroke(width = 3.dp.toPx()),
-                    )
-                }
-                Spacer(Modifier.height(30.dp))
-                Text(
-                    text = if (ticket == TicketColour.GREEN) "GREEN TICKET!" else "RED TICKET!",
-                    color = foreground,
-                    fontSize = 40.sp,
-                    fontWeight = FontWeight.Black,
-                    textAlign = TextAlign.Center,
-                )
+                AwardedTicket(ticket = ticket, ink = foreground)
             }
             Spacer(Modifier.height(34.dp))
             Text(
@@ -436,6 +440,65 @@ private fun ResultScreen(ticket: TicketColour?, onReset: () -> Unit) {
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
                 letterSpacing = 2.sp,
+            )
+        }
+    }
+}
+
+@Composable
+private fun AwardedTicket(ticket: TicketColour, ink: Color) {
+    val title = if (ticket == TicketColour.GREEN) "GREEN" else "RED"
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(230.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Canvas(Modifier.fillMaxSize()) {
+            drawTicket(Cream, ink)
+            val dividerX = size.width * 0.76f
+            drawLine(
+                color = ink.copy(alpha = 0.38f),
+                start = Offset(dividerX, 24.dp.toPx()),
+                end = Offset(dividerX, size.height - 24.dp.toPx()),
+                strokeWidth = 2.dp.toPx(),
+            )
+            repeat(5) { index ->
+                drawCircle(
+                    color = ink.copy(alpha = 0.65f),
+                    radius = 4.dp.toPx(),
+                    center = Offset(
+                        x = size.width * 0.88f,
+                        y = size.height * 0.30f + index * 22.dp.toPx(),
+                    ),
+                )
+            }
+        }
+
+        Column(
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .padding(start = 34.dp, end = 100.dp),
+        ) {
+            Text(
+                text = "YOU GOT A",
+                color = ink.copy(alpha = 0.72f),
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 3.sp,
+            )
+            Text(
+                text = title,
+                color = ink,
+                fontSize = 49.sp,
+                fontWeight = FontWeight.Black,
+            )
+            Text(
+                text = "TICKET!",
+                color = ink,
+                fontSize = 38.sp,
+                fontWeight = FontWeight.Black,
             )
         }
     }
