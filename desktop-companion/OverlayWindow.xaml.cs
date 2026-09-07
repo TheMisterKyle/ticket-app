@@ -14,7 +14,7 @@ public partial class OverlayWindow : Window
     private const int WsExTransparent = 0x20;
     private const int WsExNoActivate = 0x08000000;
     private readonly bool playSound;
-    private readonly MediaPlayer player = new();
+    private readonly System.Media.SoundPlayer player = new();
 
     public OverlayWindow(Forms.Screen screen, bool playSound)
     {
@@ -24,8 +24,6 @@ public partial class OverlayWindow : Window
         Top = screen.Bounds.Top;
         Width = screen.Bounds.Width;
         Height = screen.Bounds.Height;
-        ResultArt.SetValue(Canvas.LeftProperty, (Width - ResultArt.Width) / 2);
-        ResultArt.SetValue(Canvas.TopProperty, (Height - ResultArt.Height) / 2);
         SourceInitialized += (_, _) =>
         {
             var handle = new WindowInteropHelper(this).Handle;
@@ -37,15 +35,15 @@ public partial class OverlayWindow : Window
     public async Task PlayAsync(Outcome outcome)
     {
         Show();
-        if (playSound) PlayAsset("drumroll.mp3");
+        if (playSound) PlayAsset("drumroll.wav");
         await Task.Delay(950);
         Configure(outcome);
         if (playSound) PlayAsset(outcome switch
         {
-            Outcome.GreenWin => "green_win.mp3",
-            Outcome.RedWin => "red_win.mp3",
-            Outcome.GreenMiss => "green_miss.mp3",
-            _ => "red_miss.mp3",
+            Outcome.GreenWin => "green_win.wav",
+            Outcome.RedWin => "red_win.wav",
+            Outcome.GreenMiss => "green_miss.wav",
+            _ => "red_miss.wav",
         });
         Animate(outcome);
         await Task.Delay(3000);
@@ -106,8 +104,8 @@ public partial class OverlayWindow : Window
 
     private void PlayAsset(string name)
     {
-        player.Open(new Uri(System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", name)));
-        player.Volume = 1;
+        player.SoundLocation = System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", name);
+        player.Load();
         player.Play();
     }
 

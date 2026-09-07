@@ -10,7 +10,7 @@
     <RootNamespace>TicketToss.Companion</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <Content Include="Assets\*.mp3">
+    <Content Include="Assets\*.wav">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>

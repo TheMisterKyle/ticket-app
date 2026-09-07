@@ -3,9 +3,10 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         ShowInTaskbar="False" Topmost="True" ShowActivated="False">
-    <Canvas x:Name="Stage" IsHitTestVisible="False">
+    <Grid x:Name="Stage" IsHitTestVisible="False">
         <Grid x:Name="ResultArt" Width="620" Height="330" Opacity="0"
-              Canvas.Left="0" Canvas.Top="0" RenderTransformOrigin="0.5,0.5">
+              HorizontalAlignment="Center" VerticalAlignment="Center"
+              RenderTransformOrigin="0.5,0.5">
             <Grid.RenderTransform>
                 <TransformGroup>
                     <ScaleTransform x:Name="Scale" ScaleX="1" ScaleY="1"/>
@@ -30,5 +31,5 @@
             <TextBlock x:Name="MissIcon" Visibility="Collapsed" FontSize="150"
                        HorizontalAlignment="Center" VerticalAlignment="Center"/>
         </Grid>
-    </Canvas>
+    </Grid>
 </Window>
