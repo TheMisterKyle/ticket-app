@@ -13,22 +13,30 @@ public partial class OverlayWindow : Window
     private const int GwlExStyle = -20;
     private const int WsExTransparent = 0x20;
     private const int WsExNoActivate = 0x08000000;
+    private const uint SwpNoActivate = 0x0010;
+    private const uint SwpShowWindow = 0x0040;
     private readonly bool playSound;
+    private readonly System.Drawing.Rectangle screenBounds;
     private readonly System.Media.SoundPlayer player = new();
 
     public OverlayWindow(Forms.Screen screen, bool playSound)
     {
         InitializeComponent();
         this.playSound = playSound;
-        Left = screen.Bounds.Left;
-        Top = screen.Bounds.Top;
-        Width = screen.Bounds.Width;
-        Height = screen.Bounds.Height;
+        screenBounds = screen.Bounds;
         SourceInitialized += (_, _) =>
         {
             var handle = new WindowInteropHelper(this).Handle;
             SetWindowLong(handle, GwlExStyle,
                 GetWindowLong(handle, GwlExStyle) | WsExTransparent | WsExNoActivate);
+            SetWindowPos(
+                handle,
+                new IntPtr(-1),
+                screenBounds.Left,
+                screenBounds.Top,
+                screenBounds.Width,
+                screenBounds.Height,
+                SwpNoActivate | SwpShowWindow);
         };
     }
 
@@ -111,4 +119,13 @@ public partial class OverlayWindow : Window
 
     [DllImport("user32.dll")] private static extern int GetWindowLong(IntPtr hWnd, int index);
     [DllImport("user32.dll")] private static extern int SetWindowLong(IntPtr hWnd, int index, int value);
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool SetWindowPos(
+        IntPtr hWnd,
+        IntPtr hWndInsertAfter,
+        int x,
+        int y,
+        int width,
+        int height,
+        uint flags);
 }
