@@ -59,7 +59,7 @@ import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 import kotlin.random.Random
 
-private val greenProbabilitySteps = listOf(0.20f, 0.45f, 0.70f, 0.85f, 1.00f)
+private val greenProbabilitySteps = listOf(0.15f, 0.35f, 0.60f, 0.80f, 1.00f)
 private val redProbabilitySteps = listOf(0.10f, 0.25f, 0.50f, 0.75f, 1.00f)
 
 private val Background = Color(0xFF111318)
