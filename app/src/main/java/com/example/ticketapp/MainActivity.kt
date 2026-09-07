@@ -87,6 +87,7 @@ private enum class TicketColour {
 
 private sealed interface AppScreen {
     data object Ready : AppScreen
+    data class Rolling(val ticket: TicketColour?) : AppScreen
     data class Result(val ticket: TicketColour?) : AppScreen
 }
 
@@ -95,11 +96,12 @@ class MainActivity : ComponentActivity() {
     private var greenSound = 0
     private var redSound = 0
     private var missSound = 0
+    private var drumrollSound = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         soundPool = SoundPool.Builder()
-            .setMaxStreams(2)
+            .setMaxStreams(3)
             .setAudioAttributes(
                 AudioAttributes.Builder()
                     .setUsage(AudioAttributes.USAGE_GAME)
@@ -110,6 +112,7 @@ class MainActivity : ComponentActivity() {
         greenSound = soundPool.load(this, R.raw.green_win, 1)
         redSound = soundPool.load(this, R.raw.red_win, 1)
         missSound = soundPool.load(this, R.raw.no_ticket, 1)
+        drumrollSound = soundPool.load(this, R.raw.drumroll, 1)
 
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         enableEdgeToEdge()
@@ -117,7 +120,10 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             TicketAppTheme(dynamicColor = false) {
-                TicketApp(onPlaySound = ::playOutcomeSound)
+                TicketApp(
+                    onPlayDrumroll = ::playDrumroll,
+                    onPlayOutcomeSound = ::playOutcomeSound,
+                )
             }
         }
     }
@@ -149,18 +155,34 @@ class MainActivity : ComponentActivity() {
         }
         soundPool.play(sound, 1f, 1f, 1, 0, 1f)
     }
+
+    private fun playDrumroll() {
+        soundPool.play(drumrollSound, 1f, 1f, 1, 0, 1f)
+    }
 }
 
 @Composable
-private fun TicketApp(onPlaySound: (TicketColour?) -> Unit) {
+private fun TicketApp(
+    onPlayDrumroll: () -> Unit,
+    onPlayOutcomeSound: (TicketColour?) -> Unit,
+) {
     var screen by remember { mutableStateOf<AppScreen>(AppScreen.Ready) }
 
     when (val current = screen) {
         AppScreen.Ready -> ReadyScreen { colour, probability ->
             val won = Random.nextFloat() < probability
             val result = colour.takeIf { won }
-            onPlaySound(result)
-            screen = AppScreen.Result(ticket = result)
+            onPlayDrumroll()
+            screen = AppScreen.Rolling(ticket = result)
+        }
+
+        is AppScreen.Rolling -> {
+            androidx.compose.runtime.LaunchedEffect(current) {
+                delay(500)
+                onPlayOutcomeSound(current.ticket)
+                screen = AppScreen.Result(ticket = current.ticket)
+            }
+            ReadyScreen(onRoll = { _, _ -> })
         }
 
         is AppScreen.Result -> ResultScreen(current.ticket) {
@@ -180,7 +202,8 @@ private fun ReadyScreen(onRoll: (TicketColour, Float) -> Unit) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .align(Alignment.TopCenter),
+                .align(Alignment.TopCenter)
+                .padding(top = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
