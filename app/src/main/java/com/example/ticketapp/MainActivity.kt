@@ -220,7 +220,7 @@ private fun ReadyScreen(onRoll: (TicketColour, Float) -> Unit) {
             modifier = Modifier
                 .fillMaxWidth()
                 .align(Alignment.TopCenter)
-                .padding(top = 20.dp),
+                .padding(top = 44.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
