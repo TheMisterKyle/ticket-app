@@ -57,7 +57,8 @@ import com.example.ticketapp.ui.theme.TicketAppTheme
 import kotlin.math.roundToInt
 import kotlin.random.Random
 
-private val probabilitySteps = listOf(0.10f, 0.25f, 0.50f, 0.75f, 1.00f)
+private val greenProbabilitySteps = listOf(0.20f, 0.45f, 0.70f, 0.85f, 1.00f)
+private val redProbabilitySteps = listOf(0.10f, 0.25f, 0.50f, 0.75f, 1.00f)
 
 private val Background = Color(0xFF111318)
 private val Panel = Color(0xFF1B1E25)
@@ -269,7 +270,7 @@ private fun GesturePanel(
             },
             onReleased = { step ->
                 greenStep = 2
-                onRoll(TicketColour.GREEN, probabilitySteps[step])
+                onRoll(TicketColour.GREEN, greenProbabilitySteps[step])
             },
         )
         GestureTrack(
@@ -282,7 +283,7 @@ private fun GesturePanel(
             },
             onReleased = { step ->
                 redStep = 2
-                onRoll(TicketColour.RED, probabilitySteps[step])
+                onRoll(TicketColour.RED, redProbabilitySteps[step])
             },
         )
     }
@@ -320,7 +321,7 @@ private fun GestureTrack(
                         } else {
                             val verticalTravel = startY - change.position.y
                             val nextStep = (2 + (verticalTravel / stepDistancePx).roundToInt())
-                                .coerceIn(0, probabilitySteps.lastIndex)
+                                .coerceIn(0, redProbabilitySteps.lastIndex)
                             if (nextStep != currentStep) {
                                 currentStep = nextStep
                                 onStepChanged(currentStep)
