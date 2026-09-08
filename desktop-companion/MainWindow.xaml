@@ -1,11 +1,12 @@
 <Window x:Class="TicketToss.Companion.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Ticket Toss Projector" Width="480" Height="455"
+        Title="Ticket Toss Projector" Width="480" Height="570"
         WindowStartupLocation="CenterScreen" Background="#111318"
         Foreground="#F5F0E6" ResizeMode="NoResize">
     <Grid Margin="28">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/><RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
@@ -15,15 +16,23 @@
             <TextBlock Text="Projector display" Foreground="#A9ADB5" Margin="0,0,0,7"/>
             <ComboBox x:Name="DisplayPicker" Height="38" FontSize="15"/>
         </StackPanel>
-        <CheckBox x:Name="PlaySoundCheck" Grid.Row="2" Content="Play sounds through this PC"
+        <Border Grid.Row="2" Margin="0,18,0,0" Padding="14" CornerRadius="10" Background="#1B1E25">
+            <StackPanel>
+                <TextBlock Text="PHONE CONNECTION" FontWeight="Bold" Foreground="#A9ADB5"/>
+                <TextBlock x:Name="ConnectionAddress" Margin="0,8,0,0" FontSize="17" FontWeight="Bold"/>
+                <TextBlock x:Name="PairingCode" Margin="0,4,0,0" FontSize="17" FontWeight="Bold"/>
+                <TextBlock x:Name="ConnectionStatus" Margin="0,7,0,0" Foreground="#8B9099" Text="Waiting for phone…"/>
+            </StackPanel>
+        </Border>
+        <CheckBox x:Name="PlaySoundCheck" Grid.Row="3" Content="Play sounds through this PC"
                   IsChecked="True" Margin="0,18,0,0" FontSize="14"/>
-        <UniformGrid Grid.Row="3" Columns="2" Rows="2" Margin="0,22,0,22">
+        <UniformGrid Grid.Row="4" Columns="2" Rows="2" Margin="0,22,0,22">
             <Button Content="GREEN TICKET" Tag="GreenWin" Click="Test_Click" Margin="5" Background="#37C977" FontWeight="Bold"/>
             <Button Content="RED TICKET" Tag="RedWin" Click="Test_Click" Margin="5" Background="#FF5D64" FontWeight="Bold"/>
             <Button Content="GREEN — AWWW" Tag="GreenMiss" Click="Test_Click" Margin="5" Background="#173B2A" Foreground="White" FontWeight="Bold"/>
             <Button Content="RED — PHEW" Tag="RedMiss" Click="Test_Click" Margin="5" Background="#481D22" Foreground="White" FontWeight="Bold"/>
         </UniformGrid>
-        <TextBlock Grid.Row="4" Text="Closing this window leaves the companion running in the tray."
+        <TextBlock Grid.Row="5" Text="Closing this window leaves the companion running in the tray."
                    Foreground="#8B9099" TextAlignment="Center"/>
     </Grid>
 </Window>

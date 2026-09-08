@@ -4,6 +4,7 @@ import android.media.AudioAttributes
 import android.media.SoundPool
 import android.os.Bundle
 import android.view.WindowManager
+import android.content.Context
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -17,6 +18,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,12 +30,18 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,6 +58,7 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -61,7 +70,14 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.example.ticketapp.ui.theme.TicketAppTheme
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
+import java.net.InetSocketAddress
+import java.net.Socket
+import java.io.BufferedReader
+import java.io.InputStreamReader
+import java.io.OutputStreamWriter
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.roundToInt
@@ -178,25 +194,38 @@ private fun TicketApp(
     onPlayOutcomeSound: (TicketColour?, TicketColour) -> Unit,
 ) {
     var screen by remember { mutableStateOf<AppScreen>(AppScreen.Ready) }
+    val context = LocalContext.current
+    val preferences = remember { context.getSharedPreferences("companion", Context.MODE_PRIVATE) }
+    val scope = rememberCoroutineScope()
+    var showCompanionSettings by remember { mutableStateOf(false) }
+    var phoneSounds by remember { mutableStateOf(preferences.getBoolean("phone_sounds", true)) }
 
     when (val current = screen) {
-        AppScreen.Ready -> ReadyScreen { colour, probability ->
+        AppScreen.Ready -> ReadyScreen(
+            onOpenSettings = { showCompanionSettings = true },
+        ) { colour, probability ->
             val won = Random.nextFloat() < probability
             val result = colour.takeIf { won }
-            onPlayDrumroll()
+            if (phoneSounds) onPlayDrumroll()
+            val outcome = when (result) {
+                TicketColour.GREEN -> "GreenWin"
+                TicketColour.RED -> "RedWin"
+                null -> if (colour == TicketColour.GREEN) "GreenMiss" else "RedMiss"
+            }
+            scope.launch { sendToCompanion(preferences, outcome) }
             screen = AppScreen.Rolling(ticket = result, attemptedColour = colour)
         }
 
         is AppScreen.Rolling -> {
             androidx.compose.runtime.LaunchedEffect(current) {
                 delay(950)
-                onPlayOutcomeSound(current.ticket, current.attemptedColour)
+                if (phoneSounds) onPlayOutcomeSound(current.ticket, current.attemptedColour)
                 screen = AppScreen.Result(
                     ticket = current.ticket,
                     attemptedColour = current.attemptedColour,
                 )
             }
-            ReadyScreen(onRoll = { _, _ -> })
+            ReadyScreen(onOpenSettings = {}, onRoll = { _, _ -> })
         }
 
         is AppScreen.Result -> ResultScreen(
@@ -206,10 +235,34 @@ private fun TicketApp(
             screen = AppScreen.Ready
         }
     }
+
+    if (showCompanionSettings) {
+        CompanionSettingsDialog(
+            initialHost = preferences.getString("host", "") ?: "",
+            initialCode = preferences.getString("code", "") ?: "",
+            initialPhoneSounds = phoneSounds,
+            onDismiss = { showCompanionSettings = false },
+            onSave = { host, code, sounds ->
+                preferences.edit().putString("host", host.trim())
+                    .putString("code", code.trim()).putBoolean("phone_sounds", sounds).apply()
+                phoneSounds = sounds
+                showCompanionSettings = false
+            },
+            onTest = { host, code, report ->
+                scope.launch {
+                    val ok = sendToCompanion(host.trim(), code.trim(), "PING")
+                    report(if (ok) "Connected!" else "Could not connect")
+                }
+            },
+        )
+    }
 }
 
 @Composable
-private fun ReadyScreen(onRoll: (TicketColour, Float) -> Unit) {
+private fun ReadyScreen(
+    onOpenSettings: () -> Unit,
+    onRoll: (TicketColour, Float) -> Unit,
+) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -225,6 +278,9 @@ private fun ReadyScreen(onRoll: (TicketColour, Float) -> Unit) {
         ) {
             Text(
                 text = "TICKET TOSS",
+                modifier = Modifier.pointerInput(onOpenSettings) {
+                    detectTapGestures(onLongPress = { onOpenSettings() })
+                },
                 color = Cream,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
@@ -250,6 +306,86 @@ private fun ReadyScreen(onRoll: (TicketColour, Float) -> Unit) {
             modifier = Modifier.align(Alignment.BottomEnd),
             onRoll = onRoll,
         )
+    }
+}
+
+@Composable
+private fun CompanionSettingsDialog(
+    initialHost: String,
+    initialCode: String,
+    initialPhoneSounds: Boolean,
+    onDismiss: () -> Unit,
+    onSave: (String, String, Boolean) -> Unit,
+    onTest: (String, String, ((String) -> Unit)) -> Unit,
+) {
+    var host by remember { mutableStateOf(initialHost) }
+    var code by remember { mutableStateOf(initialCode) }
+    var phoneSounds by remember { mutableStateOf(initialPhoneSounds) }
+    var status by remember { mutableStateOf("Enter the address and code shown on the PC.") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Projector companion") },
+        text = {
+            Column {
+                Text(status)
+                Spacer(Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = host,
+                    onValueChange = { host = it.substringBefore(':') },
+                    label = { Text("PC address") },
+                    singleLine = true,
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = code,
+                    onValueChange = { code = it.filter(Char::isDigit).take(4) },
+                    label = { Text("Pairing code") },
+                    singleLine = true,
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(checked = phoneSounds, onCheckedChange = { phoneSounds = it })
+                    Text("Play sounds on phone")
+                }
+                Button(
+                    onClick = {
+                        status = "Testing…"
+                        onTest(host, code) { status = it }
+                    },
+                    enabled = host.isNotBlank() && code.length == 4,
+                ) { Text("Test connection") }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onSave(host, code, phoneSounds) }) { Text("Save") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
+}
+
+private suspend fun sendToCompanion(
+    preferences: android.content.SharedPreferences,
+    outcome: String,
+): Boolean = sendToCompanion(
+    preferences.getString("host", "") ?: "",
+    preferences.getString("code", "") ?: "",
+    outcome,
+)
+
+private suspend fun sendToCompanion(host: String, code: String, outcome: String): Boolean {
+    if (host.isBlank() || code.length != 4) return false
+    return withContext(Dispatchers.IO) {
+        runCatching {
+            Socket().use { socket ->
+                socket.connect(InetSocketAddress(host, 45832), 700)
+                socket.soTimeout = 1200
+                val writer = OutputStreamWriter(socket.getOutputStream(), Charsets.UTF_8).buffered()
+                writer.write("TICKETTOSS|$code|$outcome\n")
+                writer.flush()
+                BufferedReader(InputStreamReader(socket.getInputStream(), Charsets.UTF_8))
+                    .readLine() == "OK"
+            }
+        }.getOrDefault(false)
     }
 }
 
