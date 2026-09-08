@@ -110,8 +110,8 @@ public partial class OverlayWindow : Window
         {
             var sparkle = new TextBlock
             {
-                Text = "✦",
-                FontSize = size,
+                Text = green ? "✦" : "☠",
+                FontSize = green ? size : size * .9,
                 Foreground = new SolidColorBrush(colour),
                 Opacity = 0,
                 RenderTransformOrigin = new System.Windows.Point(.5, .5),
@@ -140,9 +140,8 @@ public partial class OverlayWindow : Window
         TicketImage.Visibility = Visibility.Collapsed;
         RippedTicket.Visibility = Visibility.Visible;
         RipLeft.Source = RipRight.Source = source;
-        RippedTicket.Opacity = 0;
-        RippedTicket.BeginAnimation(OpacityProperty,
-            new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(130)));
+        // Show the intact ticket immediately. The tear begins after a short beat.
+        RippedTicket.Opacity = 1;
 
         var pause = TimeSpan.FromMilliseconds(480);
         var tearTime = TimeSpan.FromMilliseconds(1250);
