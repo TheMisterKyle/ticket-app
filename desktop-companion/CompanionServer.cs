@@ -12,7 +12,7 @@ public sealed class CompanionServer : IDisposable
     private readonly TcpListener listener = new(IPAddress.Any, Port);
     private readonly CancellationTokenSource cancellation = new();
 
-    public string PairingCode { get; } = Random.Shared.Next(1000, 10000).ToString();
+    public string PairingCode { get; } = LoadOrCreatePairingCode();
     public string LocalAddress { get; } = FindLocalAddress();
     public event Action<Outcome>? OutcomeReceived;
 
@@ -84,6 +84,37 @@ public sealed class CompanionServer : IDisposable
             .FirstOrDefault(address => address.AddressFamily == AddressFamily.InterNetwork &&
                                        !IPAddress.IsLoopback(address));
         return address?.ToString() ?? "127.0.0.1";
+    }
+
+    private static string LoadOrCreatePairingCode()
+    {
+        var settingsFolder = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "Ticket Toss Projector");
+        var codeFile = Path.Combine(settingsFolder, "pairing-code.txt");
+
+        try
+        {
+            if (File.Exists(codeFile))
+            {
+                var savedCode = File.ReadAllText(codeFile).Trim();
+                if (savedCode.Length == 4 && savedCode.All(char.IsDigit)) return savedCode;
+            }
+
+            Directory.CreateDirectory(settingsFolder);
+            var newCode = Random.Shared.Next(1000, 10000).ToString();
+            File.WriteAllText(codeFile, newCode);
+            return newCode;
+        }
+        catch (IOException)
+        {
+            // Pairing still works for this session if Windows blocks settings storage.
+            return Random.Shared.Next(1000, 10000).ToString();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Random.Shared.Next(1000, 10000).ToString();
+        }
     }
 
     public void Dispose()
