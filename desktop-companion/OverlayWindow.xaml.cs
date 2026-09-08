@@ -1,11 +1,8 @@
 using System.Runtime.InteropServices;
 using System.Windows;
-using System.Windows.Controls;
 using System.Windows.Interop;
-using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
-using System.Windows.Threading;
 using Forms = System.Windows.Forms;
 
 namespace TicketToss.Companion;
@@ -20,7 +17,6 @@ public partial class OverlayWindow : Window
     private readonly bool playSound;
     private readonly System.Drawing.Rectangle screenBounds;
     private readonly System.Media.SoundPlayer player = new();
-    private DispatcherTimer? animationTimer;
 
     public OverlayWindow(Forms.Screen screen, bool playSound)
     {
@@ -57,42 +53,68 @@ public partial class OverlayWindow : Window
         });
         PlayAnimation(outcome);
         await Task.Delay(3000);
-        animationTimer?.Stop();
         Close();
     }
 
     private void PlayAnimation(Outcome outcome)
     {
-        var filename = outcome switch
-        {
-            Outcome.GreenWin => "green_win.gif",
-            Outcome.RedWin => "red_win.gif",
-            Outcome.GreenMiss => "green_miss.gif",
-            _ => "red_miss.gif",
-        };
+        var green = outcome is Outcome.GreenWin or Outcome.GreenMiss;
+        var filename = green ? "ticket_green.png" : "ticket_red.png";
         var path = System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", filename);
-        using var stream = System.IO.File.OpenRead(path);
-        var decoder = new GifBitmapDecoder(stream, BitmapCreateOptions.PreservePixelFormat,
-            BitmapCacheOption.OnLoad);
-        var frames = decoder.Frames.ToArray();
-        if (frames.Length == 0) return;
+        TicketImage.Source = new BitmapImage(new Uri(path));
 
-        var frameIndex = 0;
-        AnimationImage.Source = frames[0];
-        AnimationImage.BeginAnimation(OpacityProperty,
-            new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(90)));
-        animationTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1000.0 / 24.0) };
-        animationTimer.Tick += (_, _) =>
+        if (outcome is Outcome.GreenWin or Outcome.RedWin)
         {
-            frameIndex++;
-            if (frameIndex >= frames.Length)
-            {
-                animationTimer.Stop();
-                return;
-            }
-            AnimationImage.Source = frames[frameIndex];
-        };
-        animationTimer.Start();
+            TicketScale.ScaleX = TicketScale.ScaleY = outcome == Outcome.GreenWin ? .48 : 1.35;
+            TicketRotation.Angle = outcome == Outcome.GreenWin ? -12 : 9;
+            TicketTranslation.Y = outcome == Outcome.RedWin ? -screenBounds.Height * .55 : 0;
+            TicketImage.BeginAnimation(OpacityProperty,
+                new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(120)));
+            var settle = new BackEase { Amplitude = .45, EasingMode = EasingMode.EaseOut };
+            TicketScale.BeginAnimation(System.Windows.Media.ScaleTransform.ScaleXProperty,
+                new DoubleAnimation(TicketScale.ScaleX, 1, TimeSpan.FromMilliseconds(650)) { EasingFunction = settle });
+            TicketScale.BeginAnimation(System.Windows.Media.ScaleTransform.ScaleYProperty,
+                new DoubleAnimation(TicketScale.ScaleY, 1, TimeSpan.FromMilliseconds(650)) { EasingFunction = settle });
+            TicketRotation.BeginAnimation(System.Windows.Media.RotateTransform.AngleProperty,
+                new DoubleAnimation(TicketRotation.Angle, 0, TimeSpan.FromMilliseconds(650)) { EasingFunction = settle });
+            TicketTranslation.BeginAnimation(System.Windows.Media.TranslateTransform.YProperty,
+                new DoubleAnimation(TicketTranslation.Y, 0, TimeSpan.FromMilliseconds(650)) { EasingFunction = settle });
+            return;
+        }
+
+        var duration = TimeSpan.FromMilliseconds(1900);
+        var x = new DoubleAnimationUsingKeyFrames { Duration = duration };
+        var y = new DoubleAnimationUsingKeyFrames { Duration = duration };
+        var opacity = new DoubleAnimationUsingKeyFrames { Duration = duration };
+        if (outcome == Outcome.GreenMiss)
+        {
+            x.KeyFrames.Add(new LinearDoubleKeyFrame(-screenBounds.Width * .65, KeyTime.FromPercent(0)));
+            x.KeyFrames.Add(new SplineDoubleKeyFrame(0, KeyTime.FromPercent(.38), new KeySpline(.2, .8, .3, 1)));
+            x.KeyFrames.Add(new SplineDoubleKeyFrame(screenBounds.Width * .75, KeyTime.FromPercent(1), new KeySpline(.7, 0, 1, .4)));
+            y.KeyFrames.Add(new LinearDoubleKeyFrame(35, KeyTime.FromPercent(0)));
+            y.KeyFrames.Add(new LinearDoubleKeyFrame(-25, KeyTime.FromPercent(1)));
+            TicketRotation.Angle = -8;
+            TicketRotation.BeginAnimation(System.Windows.Media.RotateTransform.AngleProperty,
+                new DoubleAnimation(-8, 13, duration));
+        }
+        else
+        {
+            x.KeyFrames.Add(new LinearDoubleKeyFrame(0, KeyTime.FromPercent(0)));
+            x.KeyFrames.Add(new LinearDoubleKeyFrame(0, KeyTime.FromPercent(.38)));
+            x.KeyFrames.Add(new SplineDoubleKeyFrame(screenBounds.Width * .62, KeyTime.FromPercent(1), new KeySpline(.5, 0, 1, .4)));
+            y.KeyFrames.Add(new LinearDoubleKeyFrame(0, KeyTime.FromPercent(0)));
+            y.KeyFrames.Add(new LinearDoubleKeyFrame(0, KeyTime.FromPercent(.38)));
+            y.KeyFrames.Add(new SplineDoubleKeyFrame(-screenBounds.Height * .55, KeyTime.FromPercent(1), new KeySpline(.5, 0, 1, .4)));
+            TicketRotation.BeginAnimation(System.Windows.Media.RotateTransform.AngleProperty,
+                new DoubleAnimation(0, 24, duration));
+        }
+        opacity.KeyFrames.Add(new LinearDoubleKeyFrame(0, KeyTime.FromPercent(0)));
+        opacity.KeyFrames.Add(new LinearDoubleKeyFrame(1, KeyTime.FromPercent(.08)));
+        opacity.KeyFrames.Add(new LinearDoubleKeyFrame(1, KeyTime.FromPercent(.70)));
+        opacity.KeyFrames.Add(new LinearDoubleKeyFrame(0, KeyTime.FromPercent(1)));
+        TicketTranslation.BeginAnimation(System.Windows.Media.TranslateTransform.XProperty, x);
+        TicketTranslation.BeginAnimation(System.Windows.Media.TranslateTransform.YProperty, y);
+        TicketImage.BeginAnimation(OpacityProperty, opacity);
     }
 
     private void PlayAsset(string name)

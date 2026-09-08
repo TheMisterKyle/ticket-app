@@ -4,8 +4,16 @@
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         ShowInTaskbar="False" Topmost="True" ShowActivated="False">
     <Grid x:Name="Stage" IsHitTestVisible="False">
-        <Image x:Name="AnimationImage" Width="960" Height="640" Opacity="0"
+        <Image x:Name="TicketImage" Width="670" Height="350" Opacity="0"
                HorizontalAlignment="Center" VerticalAlignment="Center"
-               Stretch="Uniform" SnapsToDevicePixels="True"/>
+               Stretch="Uniform" SnapsToDevicePixels="True" RenderTransformOrigin="0.5,0.5">
+            <Image.RenderTransform>
+                <TransformGroup>
+                    <ScaleTransform x:Name="TicketScale" ScaleX="1" ScaleY="1"/>
+                    <RotateTransform x:Name="TicketRotation"/>
+                    <TranslateTransform x:Name="TicketTranslation"/>
+                </TransformGroup>
+            </Image.RenderTransform>
+        </Image>
     </Grid>
 </Window>
