@@ -67,6 +67,14 @@ public sealed class CompanionServer : IDisposable
 
     private static string FindLocalAddress()
     {
+        try
+        {
+            using var routeProbe = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+            routeProbe.Connect("8.8.8.8", 65530);
+            if (routeProbe.LocalEndPoint is IPEndPoint endpoint) return endpoint.Address.ToString();
+        }
+        catch (SocketException) { }
+
         var address = NetworkInterface.GetAllNetworkInterfaces()
             .Where(adapter => adapter.OperationalStatus == OperationalStatus.Up &&
                               adapter.NetworkInterfaceType != NetworkInterfaceType.Loopback)
