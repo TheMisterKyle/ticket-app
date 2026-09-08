@@ -4,32 +4,8 @@
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         ShowInTaskbar="False" Topmost="True" ShowActivated="False">
     <Grid x:Name="Stage" IsHitTestVisible="False">
-        <Grid x:Name="ResultArt" Width="620" Height="330" Opacity="0"
-              HorizontalAlignment="Center" VerticalAlignment="Center"
-              RenderTransformOrigin="0.5,0.5">
-            <Grid.RenderTransform>
-                <TransformGroup>
-                    <ScaleTransform x:Name="Scale" ScaleX="1" ScaleY="1"/>
-                    <RotateTransform x:Name="Rotation"/>
-                    <TranslateTransform x:Name="Translation"/>
-                </TransformGroup>
-            </Grid.RenderTransform>
-            <Border x:Name="Ticket" CornerRadius="34" BorderThickness="7" Padding="45,28"
-                    Background="#F5F0E6" BorderBrush="#123B29">
-                <Grid>
-                    <StackPanel VerticalAlignment="Center">
-                        <TextBlock x:Name="Eyebrow" Text="YOU GOT A" FontSize="22" FontWeight="Bold"/>
-                        <TextBlock x:Name="Headline" Text="GREEN TICKET!" FontSize="62" FontWeight="Black"/>
-                    </StackPanel>
-                    <StackPanel HorizontalAlignment="Right" VerticalAlignment="Center">
-                        <Ellipse Width="13" Height="13" Margin="0,7" Fill="#123B29"/>
-                        <Ellipse Width="13" Height="13" Margin="0,7" Fill="#123B29"/>
-                        <Ellipse Width="13" Height="13" Margin="0,7" Fill="#123B29"/>
-                    </StackPanel>
-                </Grid>
-            </Border>
-            <TextBlock x:Name="MissIcon" Visibility="Collapsed" FontSize="150"
-                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
-        </Grid>
+        <Image x:Name="AnimationImage" Width="960" Height="640" Opacity="0"
+               HorizontalAlignment="Center" VerticalAlignment="Center"
+               Stretch="Uniform" SnapsToDevicePixels="True"/>
     </Grid>
 </Window>
