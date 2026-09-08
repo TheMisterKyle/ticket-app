@@ -96,7 +96,9 @@ public partial class OverlayWindow : Window
     private void AddSparkles(bool green)
     {
         EffectsCanvas.Children.Clear();
-        var colour = green ? Color.FromRgb(255, 218, 91) : Color.FromRgb(255, 239, 220);
+        var colour = green
+            ? System.Windows.Media.Color.FromRgb(255, 218, 91)
+            : System.Windows.Media.Color.FromRgb(255, 239, 220);
         var positions = new (double X, double Y, double Size, int Delay)[]
         {
             (105, 118, 34, 90), (205, 72, 22, 310), (348, 105, 27, 170),
@@ -112,7 +114,7 @@ public partial class OverlayWindow : Window
                 FontSize = size,
                 Foreground = new SolidColorBrush(colour),
                 Opacity = 0,
-                RenderTransformOrigin = new Point(.5, .5),
+                RenderTransformOrigin = new System.Windows.Point(.5, .5),
                 RenderTransform = new ScaleTransform(.25, .25),
             };
             Canvas.SetLeft(sparkle, x);

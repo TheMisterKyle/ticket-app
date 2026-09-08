@@ -11,13 +11,15 @@ if errorlevel 1 (
     exit /b 1
 )
 
-echo Starting Ticket Toss Projector Companion...
-dotnet run --project "TicketToss.Companion.csproj"
+dotnet build "TicketToss.Companion.csproj" --nologo --verbosity quiet
 
 if errorlevel 1 (
     echo.
-    echo The companion stopped because of the error shown above.
+    echo Ticket Toss could not start because of the build error shown above.
     pause
+    exit /b 1
 )
+
+start "" "%~dp0bin\Debug\net8.0-windows\TicketToss.Companion.exe"
 
 endlocal
