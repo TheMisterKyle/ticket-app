@@ -4,6 +4,8 @@
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         ShowInTaskbar="False" Topmost="True" ShowActivated="False">
     <Grid x:Name="Stage" IsHitTestVisible="False">
+        <Canvas x:Name="EffectsCanvas" Width="960" Height="640"
+                HorizontalAlignment="Center" VerticalAlignment="Center"/>
         <Image x:Name="TicketImage" Width="670" Height="350" Opacity="0"
                HorizontalAlignment="Center" VerticalAlignment="Center"
                Stretch="Uniform" SnapsToDevicePixels="True" RenderTransformOrigin="0.5,0.5">
@@ -15,5 +17,28 @@
                 </TransformGroup>
             </Image.RenderTransform>
         </Image>
+        <Grid x:Name="RippedTicket" Width="670" Height="350" Visibility="Collapsed"
+              HorizontalAlignment="Center" VerticalAlignment="Center">
+            <Image x:Name="RipLeft" Width="670" Height="350" HorizontalAlignment="Left"
+                   Stretch="Uniform" RenderTransformOrigin="0.5,0.5">
+                <Image.Clip><RectangleGeometry Rect="0,0,335,350"/></Image.Clip>
+                <Image.RenderTransform>
+                    <TransformGroup>
+                        <RotateTransform x:Name="RipLeftRotation"/>
+                        <TranslateTransform x:Name="RipLeftTranslation"/>
+                    </TransformGroup>
+                </Image.RenderTransform>
+            </Image>
+            <Image x:Name="RipRight" Width="670" Height="350" HorizontalAlignment="Left"
+                   Stretch="Uniform" RenderTransformOrigin="0.5,0.5">
+                <Image.Clip><RectangleGeometry Rect="335,0,335,350"/></Image.Clip>
+                <Image.RenderTransform>
+                    <TransformGroup>
+                        <RotateTransform x:Name="RipRightRotation"/>
+                        <TranslateTransform x:Name="RipRightTranslation"/>
+                    </TransformGroup>
+                </Image.RenderTransform>
+            </Image>
+        </Grid>
     </Grid>
 </Window>

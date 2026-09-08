@@ -1,6 +1,8 @@
 using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Interop;
+using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
 using Forms = System.Windows.Forms;
@@ -59,12 +61,18 @@ public partial class OverlayWindow : Window
     private void PlayAnimation(Outcome outcome)
     {
         var green = outcome is Outcome.GreenWin or Outcome.GreenMiss;
-        var filename = green ? "ticket_green.png" : "ticket_red.png";
+        var win = outcome is Outcome.GreenWin or Outcome.RedWin;
+        var preferredFilename = green ? "ticket_green_nope.png" : "ticket_red_nope.png";
+        var filename = win || !System.IO.File.Exists(
+            System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", preferredFilename))
+            ? (green ? "ticket_green.png" : "ticket_red.png")
+            : preferredFilename;
         var path = System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", filename);
         TicketImage.Source = new BitmapImage(new Uri(path));
 
         if (outcome is Outcome.GreenWin or Outcome.RedWin)
         {
+            AddSparkles(green);
             TicketScale.ScaleX = TicketScale.ScaleY = outcome == Outcome.GreenWin ? .48 : 1.35;
             TicketRotation.Angle = outcome == Outcome.GreenWin ? -12 : 9;
             TicketTranslation.Y = outcome == Outcome.RedWin ? -screenBounds.Height * .55 : 0;
@@ -82,39 +90,77 @@ public partial class OverlayWindow : Window
             return;
         }
 
-        var duration = TimeSpan.FromMilliseconds(1900);
-        var x = new DoubleAnimationUsingKeyFrames { Duration = duration };
-        var y = new DoubleAnimationUsingKeyFrames { Duration = duration };
-        var opacity = new DoubleAnimationUsingKeyFrames { Duration = duration };
-        if (outcome == Outcome.GreenMiss)
+        PlayRippedTicket(TicketImage.Source, outcome == Outcome.GreenMiss);
+    }
+
+    private void AddSparkles(bool green)
+    {
+        EffectsCanvas.Children.Clear();
+        var colour = green ? Color.FromRgb(255, 218, 91) : Color.FromRgb(255, 239, 220);
+        var positions = new (double X, double Y, double Size, int Delay)[]
         {
-            x.KeyFrames.Add(new LinearDoubleKeyFrame(-screenBounds.Width * .65, KeyTime.FromPercent(0)));
-            x.KeyFrames.Add(new SplineDoubleKeyFrame(0, KeyTime.FromPercent(.38), new KeySpline(.2, .8, .3, 1)));
-            x.KeyFrames.Add(new SplineDoubleKeyFrame(screenBounds.Width * .75, KeyTime.FromPercent(1), new KeySpline(.7, 0, 1, .4)));
-            y.KeyFrames.Add(new LinearDoubleKeyFrame(35, KeyTime.FromPercent(0)));
-            y.KeyFrames.Add(new LinearDoubleKeyFrame(-25, KeyTime.FromPercent(1)));
-            TicketRotation.Angle = -8;
-            TicketRotation.BeginAnimation(System.Windows.Media.RotateTransform.AngleProperty,
-                new DoubleAnimation(-8, 13, duration));
-        }
-        else
+            (105, 118, 34, 90), (205, 72, 22, 310), (348, 105, 27, 170),
+            (590, 88, 31, 390), (735, 130, 24, 220), (830, 205, 36, 520),
+            (118, 390, 28, 450), (236, 505, 35, 260), (375, 462, 21, 610),
+            (585, 490, 29, 120), (742, 455, 38, 350), (842, 350, 23, 680),
+        };
+        foreach (var (x, y, size, delay) in positions)
         {
-            x.KeyFrames.Add(new LinearDoubleKeyFrame(0, KeyTime.FromPercent(0)));
-            x.KeyFrames.Add(new LinearDoubleKeyFrame(0, KeyTime.FromPercent(.38)));
-            x.KeyFrames.Add(new SplineDoubleKeyFrame(screenBounds.Width * .62, KeyTime.FromPercent(1), new KeySpline(.5, 0, 1, .4)));
-            y.KeyFrames.Add(new LinearDoubleKeyFrame(0, KeyTime.FromPercent(0)));
-            y.KeyFrames.Add(new LinearDoubleKeyFrame(0, KeyTime.FromPercent(.38)));
-            y.KeyFrames.Add(new SplineDoubleKeyFrame(-screenBounds.Height * .55, KeyTime.FromPercent(1), new KeySpline(.5, 0, 1, .4)));
-            TicketRotation.BeginAnimation(System.Windows.Media.RotateTransform.AngleProperty,
-                new DoubleAnimation(0, 24, duration));
+            var sparkle = new TextBlock
+            {
+                Text = "✦",
+                FontSize = size,
+                Foreground = new SolidColorBrush(colour),
+                Opacity = 0,
+                RenderTransformOrigin = new Point(.5, .5),
+                RenderTransform = new ScaleTransform(.25, .25),
+            };
+            Canvas.SetLeft(sparkle, x);
+            Canvas.SetTop(sparkle, y);
+            EffectsCanvas.Children.Add(sparkle);
+            var begin = TimeSpan.FromMilliseconds(delay);
+            var pulse = new DoubleAnimationUsingKeyFrames { BeginTime = begin, Duration = TimeSpan.FromMilliseconds(900) };
+            pulse.KeyFrames.Add(new LinearDoubleKeyFrame(0, KeyTime.FromPercent(0)));
+            pulse.KeyFrames.Add(new SplineDoubleKeyFrame(1, KeyTime.FromPercent(.28), new KeySpline(.2, .8, .3, 1)));
+            pulse.KeyFrames.Add(new LinearDoubleKeyFrame(.85, KeyTime.FromPercent(.68)));
+            pulse.KeyFrames.Add(new LinearDoubleKeyFrame(0, KeyTime.FromPercent(1)));
+            sparkle.BeginAnimation(OpacityProperty, pulse);
+            var scale = (ScaleTransform)sparkle.RenderTransform;
+            scale.BeginAnimation(ScaleTransform.ScaleXProperty,
+                new DoubleAnimation(.25, 1.35, TimeSpan.FromMilliseconds(700)) { BeginTime = begin });
+            scale.BeginAnimation(ScaleTransform.ScaleYProperty,
+                new DoubleAnimation(.25, 1.35, TimeSpan.FromMilliseconds(700)) { BeginTime = begin });
         }
-        opacity.KeyFrames.Add(new LinearDoubleKeyFrame(0, KeyTime.FromPercent(0)));
-        opacity.KeyFrames.Add(new LinearDoubleKeyFrame(1, KeyTime.FromPercent(.08)));
-        opacity.KeyFrames.Add(new LinearDoubleKeyFrame(1, KeyTime.FromPercent(.70)));
-        opacity.KeyFrames.Add(new LinearDoubleKeyFrame(0, KeyTime.FromPercent(1)));
-        TicketTranslation.BeginAnimation(System.Windows.Media.TranslateTransform.XProperty, x);
-        TicketTranslation.BeginAnimation(System.Windows.Media.TranslateTransform.YProperty, y);
-        TicketImage.BeginAnimation(OpacityProperty, opacity);
+    }
+
+    private void PlayRippedTicket(ImageSource source, bool greenMiss)
+    {
+        TicketImage.Visibility = Visibility.Collapsed;
+        RippedTicket.Visibility = Visibility.Visible;
+        RipLeft.Source = RipRight.Source = source;
+        RippedTicket.Opacity = 0;
+        RippedTicket.BeginAnimation(OpacityProperty,
+            new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(130)));
+
+        var pause = TimeSpan.FromMilliseconds(480);
+        var tearTime = TimeSpan.FromMilliseconds(1250);
+        var ease = new QuadraticEase { EasingMode = EasingMode.EaseIn };
+        var direction = greenMiss ? 1 : -1;
+        RipLeftRotation.BeginAnimation(RotateTransform.AngleProperty,
+            new DoubleAnimation(0, -24 * direction, tearTime) { BeginTime = pause, EasingFunction = ease });
+        RipRightRotation.BeginAnimation(RotateTransform.AngleProperty,
+            new DoubleAnimation(0, 27 * direction, tearTime) { BeginTime = pause, EasingFunction = ease });
+        RipLeftTranslation.BeginAnimation(TranslateTransform.XProperty,
+            new DoubleAnimation(0, -360, tearTime) { BeginTime = pause, EasingFunction = ease });
+        RipRightTranslation.BeginAnimation(TranslateTransform.XProperty,
+            new DoubleAnimation(0, 360, tearTime) { BeginTime = pause, EasingFunction = ease });
+        RipLeftTranslation.BeginAnimation(TranslateTransform.YProperty,
+            new DoubleAnimation(0, 230, tearTime) { BeginTime = pause, EasingFunction = ease });
+        RipRightTranslation.BeginAnimation(TranslateTransform.YProperty,
+            new DoubleAnimation(0, 250, tearTime) { BeginTime = pause, EasingFunction = ease });
+        RippedTicket.BeginAnimation(OpacityProperty,
+            new DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(700))
+                { BeginTime = TimeSpan.FromMilliseconds(1050) });
     }
 
     private void PlayAsset(string name)
