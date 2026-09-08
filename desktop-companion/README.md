@@ -18,6 +18,7 @@ This Windows utility displays a transparent result animation on a selected monit
 5. If Windows Firewall asks, allow access on **Private networks**.
 
 The phone continues to work normally if the companion is closed or unreachable.
+The companion keeps the same pairing code between launches, and the Android app remembers the connection details. Pairing normally only needs to be completed once. If the PC's local network address changes, update only the address in the phone's hidden settings.
 
 Closing the controls minimizes the companion to the notification tray. Right-click its tray icon to reopen it or exit.
 
