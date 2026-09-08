@@ -29,3 +29,7 @@ dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=
 ```
 
 The output is placed under `bin\Release\net8.0-windows\win-x64\publish`.
+
+## Run on a PC without the .NET SDK
+
+Download the latest **Ticket-Toss-Projector-Windows** artifact from the repository's **Actions** page, unzip it, and open `TicketToss.Companion.exe`. The packaged build includes its own .NET runtime and does not open a command prompt.
