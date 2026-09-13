@@ -1,34 +1,51 @@
 name: Build Windows Companion
-
 on:
   workflow_dispatch:
   push:
-    branches: [ master ]
-    paths:
-      - "desktop-companion/**"
-      - ".github/workflows/build-companion.yml"
-
+    branches: [master]
+    tags: ["v*"]
+    paths: ["desktop-companion/**", ".github/workflows/build-companion.yml"]
 permissions:
-  contents: read
-
+  contents: write
 jobs:
   build:
     runs-on: windows-latest
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Set up .NET 8
-        uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "8.0.x"
-
       - name: Publish standalone companion
         run: dotnet publish desktop-companion/TicketToss.Companion.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o companion-publish
-
-      - name: Upload ready-to-run companion
-        uses: actions/upload-artifact@v4
+      - name: Package release
+        shell: pwsh
+        run: Compress-Archive -Path companion-publish/* -DestinationPath Ticket-Toss-Projector-Windows.zip
+      - uses: actions/upload-artifact@v4
         with:
           name: Ticket-Toss-Projector-Windows
-          path: companion-publish/**
+          path: Ticket-Toss-Projector-Windows.zip
           if-no-files-found: error
+      - name: Create approved Style release manifest
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: |
+          $version = $env:GITHUB_REF_NAME.TrimStart('v')
+          $asset = "Ticket-Toss-Projector-Windows.zip"
+          $sha = (Get-FileHash $asset -Algorithm SHA256).Hash.ToLowerInvariant()
+          $size = (Get-Item $asset).Length
+          $url = "https://github.com/${{ github.repository }}/releases/download/$env:GITHUB_REF_NAME/$asset"
+          $manifest = @{
+            schema_version = "1.0"; app_id = "ca.kyle.ticket-toss"; version = $version
+            channel = "stable"; published_at = (Get-Date).ToUniversalTime().ToString("o")
+            approved = $true; minimum_contract_version = "1.0"
+            artifacts = @(@{ platform = "windows"; architecture = "x64"; url = $url; sha256 = $sha; size_bytes = $size; install_mode = "replace-directory"; entrypoint = "TicketToss.Companion.exe" })
+            migration = @{ required = $false; owner = "application" }
+            rollback = @{ supported = $true; strategy = "previous-artifact" }
+            notes = "First Style-managed Ticket App release."
+          }
+          $manifest | ConvertTo-Json -Depth 8 | Set-Content style-release.json
+      - name: Publish GitHub release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$env:GITHUB_REF_NAME" Ticket-Toss-Projector-Windows.zip style-release.json --title "Ticket App $env:GITHUB_REF_NAME" --notes "First Style-managed Ticket App release."

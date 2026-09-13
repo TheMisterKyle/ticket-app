@@ -1,0 +1,12 @@
+{
+  "schema_version": "1.0",
+  "app_id": "ca.kyle.ticket-toss",
+  "display_name": "Ticket App",
+  "version": "0.1.0",
+  "channel": "stable",
+  "runtime": {"platform": "windows", "architecture": "x64"},
+  "version_discovery": {"method": "manifest", "path": "style-app.json"},
+  "installation": {"kind": "portable", "entrypoint": "TicketToss.Companion.exe"},
+  "data_strategy": {"locations": ["%LOCALAPPDATA%/TicketToss"], "migration_owner": "application"},
+  "capabilities": {"style_managed": true, "self_update": false}
+}
