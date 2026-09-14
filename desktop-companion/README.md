@@ -32,8 +32,10 @@ dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=
 
 The output is placed under `bin\Release\net8.0-windows\win-x64\publish`.
 
-## Run on a PC without the .NET SDK
+## Automated Style release
 
-For development or testing, download the latest **Ticket-Toss-Projector-Windows** artifact from the repository's **Actions** page, unzip it, and open `TicketToss.Companion.exe`. The packaged build includes its own .NET runtime and does not open a command prompt.
+For a normal release, finish and verify the change, then bump `<Version>` in `TicketToss.Companion.csproj` and `version` in `style-app.json` to the same new value. The `style-app.json` change must be the final release-ready change pushed to `master`.
 
-Normal consumer installation and updates are managed through Style.
+CI then validates, builds, packages, hashes, and publishes the approved artifact and `style-release.json` together. Style discovers the newer approved version automatically. Manual workflow dispatch is an emergency/recovery fallback only.
+
+For development or testing, workflow artifacts may be used directly. Normal consumer installation and updates are managed through Style.
