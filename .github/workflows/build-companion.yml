@@ -39,6 +39,7 @@ jobs:
             schema_version = "1.0"; app_id = "ca.kyle.ticket-toss"; version = $version
             channel = "stable"; published_at = (Get-Date).ToUniversalTime().ToString("o")
             approved = $true; minimum_contract_version = "1.0"
+            source = @{ repository = "https://github.com/${{ github.repository }}"; commit = "${{ github.sha }}" }
             artifacts = @(@{ platform = "windows"; architecture = "x64"; url = $url; sha256 = $sha; size_bytes = $size; install_mode = "replace-directory"; entrypoint = "TicketToss.Companion.exe" })
             migration = @{ required = $false; owner = "application" }
             rollback = @{ supported = $true; strategy = "previous-artifact" }
