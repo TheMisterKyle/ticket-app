@@ -2,7 +2,7 @@ package com.example.ticketapp.wear
 
 import android.content.Context
 import android.os.Bundle
-import androidx.activity.ComponentActivity
+import androidx.fragment.app.FragmentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.animateFloatAsState
@@ -58,7 +58,7 @@ private val RedDark = Color(0xFF4B171C)
 private val Ink = Color(0xFF090B0D)
 private val Paper = Color(0xFFF6F0DF)
 
-class MainActivity : ComponentActivity(), AmbientModeSupport.AmbientCallbackProvider {
+class MainActivity : FragmentActivity(), AmbientModeSupport.AmbientCallbackProvider {
     private var isAmbient by mutableStateOf(false)
     private lateinit var ambientController: AmbientModeSupport.AmbientController
 
