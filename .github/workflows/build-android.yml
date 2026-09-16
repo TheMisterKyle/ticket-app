@@ -1,0 +1,47 @@
+name: Build Android Apps
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "app/**"
+      - "wear/**"
+      - "build.gradle.kts"
+      - "settings.gradle.kts"
+      - "gradle/**"
+      - "gradlew"
+      - "gradlew.bat"
+      - ".github/workflows/build-android.yml"
+  pull_request:
+    paths:
+      - "app/**"
+      - "wear/**"
+      - "build.gradle.kts"
+      - "settings.gradle.kts"
+      - "gradle/**"
+      - "gradlew"
+      - "gradlew.bat"
+      - ".github/workflows/build-android.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+      - name: Build and test phone and watch apps
+        run: ./gradlew :app:assembleDebug :wear:assembleDebug :wear:testDebugUnitTest
+      - name: Upload watch debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Ticket-Toss-Wear-debug
+          path: wear/build/outputs/apk/debug/wear-debug.apk
+          if-no-files-found: error
