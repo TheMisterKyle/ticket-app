@@ -17,6 +17,7 @@ concurrency:
 jobs:
   release:
     runs-on: windows-latest
+    timeout-minutes: 45
     env:
       STYLE_APP_PATH: desktop-companion/style-app.json
       PROJECT_PATH: desktop-companion/TicketToss.Companion.csproj
@@ -156,3 +157,5 @@ jobs:
             Ticket-Toss-Projector-Windows.zip
             style-release.json
           if-no-files-found: error
+
+          retention-days: 3
