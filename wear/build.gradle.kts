@@ -13,7 +13,7 @@ android {
         applicationId = "com.example.ticketapp"
         minSdk = 30
         targetSdk = 37
-        versionCode = 11
+        versionCode = 12
         versionName = "0.2.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"

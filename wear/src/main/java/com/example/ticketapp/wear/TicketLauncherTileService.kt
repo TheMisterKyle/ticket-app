@@ -12,7 +12,7 @@ import androidx.wear.protolayout.TimelineBuilders
 import androidx.wear.tiles.RequestBuilders
 import androidx.wear.tiles.TileBuilders
 import androidx.wear.tiles.TileService
-import com.google.common.util.concurrent.Futures
+import androidx.concurrent.futures.CallbackToFutureAdapter
 import com.google.common.util.concurrent.ListenableFuture
 
 /** A static swipe-to launcher. All ticket controls stay in the existing activity. */
@@ -44,7 +44,7 @@ class TicketLauncherTileService : TileService() {
             .setModifiers(ModifiersBuilders.Modifiers.Builder().setBackground(
                 ModifiersBuilders.Background.Builder().setColor(ColorBuilders.argb(0xFF090B0D.toInt())).build(),
             ).build()).addContent(content).build()
-        return Futures.immediateFuture(TileBuilders.Tile.Builder()
+        return completed(TileBuilders.Tile.Builder()
             .setResourcesVersion("launcher-1")
             .setTileTimeline(TimelineBuilders.Timeline.Builder().addTimelineEntry(
                 TimelineBuilders.TimelineEntry.Builder().setLayout(
@@ -54,9 +54,12 @@ class TicketLauncherTileService : TileService() {
     }
 
     override fun onTileResourcesRequest(requestParams: RequestBuilders.ResourcesRequest): ListenableFuture<ResourceBuilders.Resources> =
-        Futures.immediateFuture(ResourceBuilders.Resources.Builder().setVersion("launcher-1").build())
+        completed(ResourceBuilders.Resources.Builder().setVersion("launcher-1").build())
+
+    private fun <T> completed(value: T): ListenableFuture<T> =
+        CallbackToFutureAdapter.getFuture { completer -> completer.set(value); "ticket-launcher" }
 
     private fun text(value: String, size: Float, colour: Int) = LayoutElementBuilders.Text.Builder()
         .setText(value).setFontStyle(LayoutElementBuilders.FontStyle.Builder()
-            .setSize(sp(size)).setBold(true).setColor(ColorBuilders.argb(colour)).build()).build()
+            .setSize(sp(size)).setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD).setColor(ColorBuilders.argb(colour)).build()).build()
 }
