@@ -72,4 +72,4 @@ Phone and watch results now return to the controls when local outcome playback c
 
 The PC-only/combined timer follows the equivalent clip duration; this protocol acknowledges desktop receipt rather than actual playback completion, so a queued projector animation or a slow network can finish later than the controller display. No desktop protocol or Style release change is included in this follow-up.
 
-Both updated APKs use version code 5. Install the phone and watch from the new matching artifact. The prior portable companion remains compatible. Physical acceptance: all four result sounds on both devices, automatic reset without touching the result, a muted device, an ambient transition during playback, and another toss immediately after reset.
+Both updated APKs use version code 6. Install the phone and watch from the new matching artifact. The prior portable companion remains compatible. Physical acceptance: all four result sounds on both devices, automatic reset without touching the result, a muted device, an ambient transition during playback, and another toss immediately after reset.

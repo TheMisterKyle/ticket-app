@@ -29,8 +29,8 @@ class TicketAudio(private val context: Context) {
         stop()
         if (!canPlay()) return
         player = runCatching { create(resource) }.getOrNull()
-        player?.setOnCompletionListener { stop() }
-        player?.setOnErrorListener { _, _, _ -> stop(); true }
+        player?.setOnCompletionListener { media -> if (player === media) stop() }
+        player?.setOnErrorListener { media, _, _ -> if (player === media) stop(); true }
         player?.start()
     }
 
