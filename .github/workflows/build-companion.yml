@@ -39,6 +39,8 @@ jobs:
           dotnet-version: "8.0.x"
 
       - name: Validate release signal and identity
+        env:
+          GH_TOKEN: ${{ github.token }}
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
@@ -64,8 +66,10 @@ jobs:
           if ($projectVersion -ne $version) { throw "Project version $projectVersion does not match Style version $version." }
 
           $tag = "v$version"
-          gh release view $tag --repo "${{ github.repository }}" *> $null
+          $lookup = gh api "repos/${{ github.repository }}/releases/tags/$tag" 2>&1
           if ($LASTEXITCODE -eq 0) { throw "Release $tag already exists; versions and release artifacts are immutable." }
+          if (($lookup -join "`n") -notmatch "HTTP 404") { throw "Release lookup failed: $lookup" }
+          $global:LASTEXITCODE = 0
 
           "RELEASE_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           "RELEASE_TAG=$tag" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
