@@ -88,6 +88,6 @@ Watch efficiency: status polling runs only while resumed, non-ambient, and ready
 
 A static Ticket Toss complication supports short text, long text, and monochromatic icon slots. It opens the existing MainActivity/session without tossing a ticket or changing session/ambient behaviour. It has no periodic updates or network work. After installing wear through Studio, long-press the watch face, edit its complications, select a compatible slot, and choose Ticket Toss. Watch faces control which slots and types are available. Physical selection/tap testing remains required.
 
-### Swipe-to launcher Tile (watch version code 11)
+### Swipe-to launcher Tile (watch version code 13)
 
 Ticket Toss now also supplies a static Tile with a large OPEN button. Add it to the watch Tile carousel; tapping OPEN launches the existing MainActivity/session. It works independently of watch-face complication support. No ticket rolls, status polling, or periodic refresh are performed in the Tile. Physical carousel/render/tap testing remains required.
