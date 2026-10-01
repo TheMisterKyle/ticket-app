@@ -91,3 +91,9 @@ A static Ticket Toss complication supports short text, long text, and monochroma
 ### Swipe-to launcher Tile (watch version code 13)
 
 Ticket Toss now also supplies a static Tile with a large OPEN button. Add it to the watch Tile carousel; tapping OPEN launches the existing MainActivity/session. It works independently of watch-face complication support. No ticket rolls, status polling, or periodic refresh are performed in the Tile. Physical carousel/render/tap testing remains required.
+
+### Companion startup candidate 0.2.1
+
+Two saved checkboxes: Start with Windows (current-user Run registry entry, quoted packaged exe path) and Start in tray (persistent LocalAppData/TicketToss/startup-settings.json). Defaults off. Tray launch still starts the listener; tray Open controls/double-click restores the UI. Exit now closes without the hide-to-tray close handler cancelling shutdown. Failed saves restore the prior checkbox and display an error. No existing pairing data is moved.
+
+This is an unapproved development candidate; Style remains on approved 0.2.0 until startup/logon/tray/exit acceptance and explicit promotion. Test both settings independently, restart, Windows sign-in, tray restore and Exit, and a phone/watch toss while controls are hidden. Windows Startup Apps can separately disable the registered entry.

@@ -8,16 +8,18 @@ public partial class App : System.Windows.Application
 {
     private Forms.NotifyIcon? trayIcon;
     private MainWindow? controls;
+    private bool exiting;
 
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
-        controls = new MainWindow();
-        controls.Closing += (_, args) => { args.Cancel = true; controls.Hide(); };
+        var settings = new StartupSettings();
+        controls = new MainWindow(settings);
+        controls.Closing += (_, args) => { if (!exiting) { args.Cancel = true; controls.Hide(); } };
 
         var menu = new Forms.ContextMenuStrip();
         menu.Items.Add("Open controls", null, (_, _) => ShowControls());
-        menu.Items.Add("Exit", null, (_, _) => Shutdown());
+        menu.Items.Add("Exit", null, (_, _) => { exiting = true; Shutdown(); });
         trayIcon = new Forms.NotifyIcon
         {
             Icon = SystemIcons.Application,
@@ -26,7 +28,7 @@ public partial class App : System.Windows.Application
             ContextMenuStrip = menu,
         };
         trayIcon.DoubleClick += (_, _) => ShowControls();
-        ShowControls();
+        if (!settings.StartInTray) ShowControls();
     }
 
     private void ShowControls()

@@ -11,9 +11,16 @@ public partial class MainWindow : Window
     private bool overlayBusy;
     private readonly Queue<Outcome> pendingOutcomes = new();
 
-    public MainWindow()
+    private readonly StartupSettings startupSettings;
+    private bool startupSettingsReady;
+
+    public MainWindow(StartupSettings settings)
     {
+        startupSettings = settings;
         InitializeComponent();
+        StartWithWindowsCheck.IsChecked = settings.StartWithWindows;
+        StartInTrayCheck.IsChecked = settings.StartInTray;
+        startupSettingsReady = true;
         screens = Forms.Screen.AllScreens;
         foreach (var screen in screens)
         {
@@ -63,6 +70,27 @@ public partial class MainWindow : Window
         finally
         {
             overlayBusy = false;
+        }
+    }
+
+    private void StartupSetting_Changed(object sender, RoutedEventArgs e)
+    {
+        if (!startupSettingsReady) return;
+        try
+        {
+            if (sender == StartWithWindowsCheck)
+                startupSettings.SetStartWithWindows(StartWithWindowsCheck.IsChecked == true);
+            else if (sender == StartInTrayCheck)
+                startupSettings.SetStartInTray(StartInTrayCheck.IsChecked == true);
+        }
+        catch (Exception error) when (error is System.IO.IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        {
+            startupSettingsReady = false;
+            StartWithWindowsCheck.IsChecked = startupSettings.StartWithWindows;
+            StartInTrayCheck.IsChecked = startupSettings.StartInTray;
+            startupSettingsReady = true;
+            System.Windows.MessageBox.Show(this, "Could not save the startup setting. " + error.Message,
+                "Ticket Toss", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
     }
 

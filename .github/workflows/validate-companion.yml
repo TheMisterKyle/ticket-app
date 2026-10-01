@@ -26,7 +26,7 @@ jobs:
       - name: Check development version signal
         id: version
         run: |
-          if git diff HEAD~1 HEAD -- app/build.gradle.kts wear/build.gradle.kts | grep -E '^\+.*version(Code|Name)' >/dev/null; then
+          if git diff HEAD~1 HEAD -- app/build.gradle.kts wear/build.gradle.kts desktop-companion/TicketToss.Companion.csproj | grep -E '^\+.*(version(Code|Name)|<Version>)' >/dev/null; then
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
       - name: Package development companion
