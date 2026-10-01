@@ -12,7 +12,7 @@ On the phone, long-press **TICKET TOSS** to open projector settings. Enter the e
 
 On the watch, begin/resume the class and long-press the header to choose **Watch only**, **PC only**, or **Watch and PC**. The saved choices are independent. The watch defaults to local only. A previously configured phone defaults to combined; an unconfigured phone defaults to local only.
 
-Tap or slide/release to toss as before. Local-only plays local audio. Combined displays locally but leaves audio to the desktop. PC-only gives neutral delivery status/haptics and never shows the outcome locally, including failures. Watch sounds use the existing assets; drumroll is stopped after one second. Playback stops when the activity pauses or enters ambient mode.
+Tap or slide/release to toss as before. Local-only plays local audio. Combined displays locally but leaves audio to the desktop. PC-only gives neutral delivery status/haptics and never shows the outcome locally, including failures. Watch sounds use the existing assets; drumroll finishes before the outcome starts. Playback stops when the activity pauses or enters ambient mode.
 
 The phone relay service operates without opening the phone activity. A compatible Build 2 desktop companion must be running for PC delivery; earlier companions retain their old protocol and do not understand V1 events.
 
@@ -83,3 +83,7 @@ The watch-only outcome assets now exclude quiet tails: green win 1.76 s, red win
 Watch drumroll now waits for MediaPlayer completion instead of cutting playback off at a wall-clock second. Watch screen transitions are immediate, so the result disappears without an exit fade. The shared audio completion watchdog allows only 150 ms beyond the measured clip duration, rather than two seconds, if a device fails to report completion. Phone version code 7; watch version code 8. Physical watch verification remains required.
 
 Watch efficiency: status polling runs only while resumed, non-ambient, and ready, at 30-second intervals. Delivery still starts immediately on a toss. Button press feedback no longer animates every frame. Audible playback reads duration from its existing player rather than preparing a second player to measure the clip.
+
+### Watch-face shortcut (watch version code 10)
+
+A static Ticket Toss complication supports short text, long text, and monochromatic icon slots. It opens the existing MainActivity/session without tossing a ticket or changing session/ambient behaviour. It has no periodic updates or network work. After installing wear through Studio, long-press the watch face, edit its complications, select a compatible slot, and choose Ticket Toss. Watch faces control which slots and types are available. Physical selection/tap testing remains required.
