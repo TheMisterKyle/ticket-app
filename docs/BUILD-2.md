@@ -50,3 +50,18 @@ dotnet build desktop-companion/TicketToss.Companion.csproj -p:EnableWindowsTarge
 ```
 
 Development APK and companion artifacts expire after three days. The companion ZIP is a self-contained Windows x64 development build: extract it and open `TicketToss.Companion.exe`. They are not store builds or approved Style releases.
+
+## Verified handback — September 30, 2026
+
+Implementation source: `a5a2eb102c8f6ac648320aa3ac0b2236cd5564aa` on `master`.
+
+- Phone: version 1.1.0, version code 3.
+- Watch: version 0.2.0, version code 4.
+- [Phone/watch build, both unit-test suites, and APK artifact](https://github.com/TheMisterKyle/ticket-app/actions/runs/36800990650): passed.
+- [Desktop TCP tests, WPF build, and portable development companion artifact](https://github.com/TheMisterKyle/ticket-app/actions/runs/36800990683): passed.
+- Independent local Kotlin check: 120 exact outcome/routing round trips plus malformed input checks passed.
+- Desktop Style manifest/version, release identity, and updater policy were preserved. No approved Style release was published.
+
+Changed modules: phone UI/settings and background watch relay; watch UI/settings/audio; shared protocol and transports; desktop protocol/server/animation queue; shared Kotlin and desktop protocol tests; targeted development validation/artifact workflows. Full implementation and acceptance instructions are above.
+
+Next step: physical acceptance on Kyle's Pixel Watch 3, paired phone, and classroom PC. Automated checks do not establish real speaker volume, wrist-raise behaviour, Bluetooth reconnection, closed-phone service delivery, display layout, or classroom audio routing. Confirm those, settings after restarting both controllers, ambient/session restoration, and deliberate End Session before promoting this development build.
