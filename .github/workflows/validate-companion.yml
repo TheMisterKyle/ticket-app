@@ -2,9 +2,9 @@ name: Validate Companion Protocol
 on:
   push:
     branches: [master]
-    paths: ["desktop-companion/**", "desktop-companion-tests/**"]
+    paths: ["desktop-companion/**", "desktop-companion-tests/**", "app/build.gradle.kts", "wear/build.gradle.kts", ".github/workflows/validate-companion.yml"]
   pull_request:
-    paths: ["desktop-companion/**", "desktop-companion-tests/**"]
+    paths: ["desktop-companion/**", "desktop-companion-tests/**", "app/build.gradle.kts", "wear/build.gradle.kts", ".github/workflows/validate-companion.yml"]
 permissions:
   contents: read
 concurrency:
@@ -16,8 +16,29 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "8.0.x"
       - run: dotnet run --project desktop-companion-tests/ProtocolTests.csproj
       - run: dotnet build desktop-companion/TicketToss.Companion.csproj -p:EnableWindowsTargeting=true
+      - name: Check development version signal
+        id: version
+        run: |
+          if git diff HEAD~1 HEAD -- app/build.gradle.kts wear/build.gradle.kts | grep -E '^\+.*version(Code|Name)' >/dev/null; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Package development companion
+        if: github.event_name == 'push' && steps.version.outputs.changed == 'true'
+        run: |
+          dotnet publish desktop-companion/TicketToss.Companion.csproj -p:EnableWindowsTargeting=true -c Debug -r win-x64 --self-contained true -o companion-development
+          python -c "import shutil; shutil.make_archive('Ticket-Toss-Companion-Build-2-development', 'zip', 'companion-development')"
+      - name: Upload development companion
+        if: github.event_name == 'push' && steps.version.outputs.changed == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Ticket-Toss-Companion-Build-2-development
+          path: Ticket-Toss-Companion-Build-2-development.zip
+          retention-days: 3
+          if-no-files-found: error

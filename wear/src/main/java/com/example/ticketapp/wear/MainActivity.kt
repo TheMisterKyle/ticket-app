@@ -188,6 +188,8 @@ private fun TicketTossWatchApp(
                                 } else null
                                 delay(1000)
                                 if (mode.sound) { audio.stop(); audio.outcome(outcome) }
+                                if (mode.local) haptics.performHapticFeedback(
+                                    if (outcome.awarded) HapticFeedbackType.LongPress else HapticFeedbackType.TextHandleMove)
                                 screen = if (mode.local) WatchScreen.Result(outcome) else WatchScreen.Delivery("Sending to PC…")
                                 delivery?.join()
                                 if (activeEvent != event.id) return@launch
@@ -204,7 +206,7 @@ private fun TicketTossWatchApp(
                         outcome = current.outcome,
                         isAmbient = isAmbient,
                         deliveryStatus = if (destination.pc) connection else "",
-                        onDismiss = { activeEvent = ""; audio.stop(); screen = WatchScreen.Ready },
+                        onDismiss = { audio.stop(); screen = WatchScreen.Ready },
                     )
 
                     WatchScreen.Settings -> Column(
@@ -213,7 +215,7 @@ private fun TicketTossWatchApp(
                         verticalArrangement = Arrangement.Center,
                     ) {
                         Destination.entries.forEach { mode ->
-                            TextButton(onClick = {
+                            TextButton(modifier = Modifier.height(32.dp), onClick = {
                                 destination = mode
                                 prefs.edit().putString("destination", mode.storedName("WATCH")).apply()
                                 screen = WatchScreen.Ready
@@ -223,7 +225,7 @@ private fun TicketTossWatchApp(
                                 Destination.LOCAL_AND_PC -> "Watch and PC"
                             }, fontSize = 12.sp) }
                         }
-                        TextButton(onClick = { screen = WatchScreen.Ready }) { Text("BACK") }
+                        TextButton(modifier = Modifier.height(32.dp), onClick = { screen = WatchScreen.Ready }) { Text("BACK") }
                     }
                     is WatchScreen.Delivery -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text(current.text, color = Paper, fontSize = 13.sp, textAlign = TextAlign.Center)

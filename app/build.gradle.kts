@@ -13,7 +13,7 @@ android {
         applicationId = "com.example.ticketapp"
         minSdk = 26
         targetSdk = 37
-        versionCode = 2
+        versionCode = 3
         versionName = "1.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -30,8 +30,8 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
-    sourceSets.getByName("main").java.srcDir("../shared/src/main/java")
-    sourceSets.getByName("test").java.srcDir("../shared/src/test/java")
+    sourceSets.getByName("main").kotlin.srcDir("../shared/src/main/java")
+    sourceSets.getByName("test").kotlin.srcDir("../shared/src/test/java")
 
     buildFeatures {
         compose = true

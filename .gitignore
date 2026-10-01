@@ -13,3 +13,8 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Build output from Android modules and companion protocol checks
+**/build/
+**/bin/
+**/obj/
