@@ -12,6 +12,8 @@ public sealed class CompanionServer : IDisposable
     private readonly TcpListener listener = new(IPAddress.Any, Port);
     private readonly CancellationTokenSource cancellation = new();
 
+    private readonly EventReceiptCache receipts = new();
+
     public string PairingCode { get; } = LoadOrCreatePairingCode();
     public string LocalAddress { get; } = FindLocalAddress();
     public event Action<Outcome>? OutcomeReceived;
@@ -39,31 +41,54 @@ public sealed class CompanionServer : IDisposable
 
     private async Task HandleClientAsync(TcpClient client)
     {
-        using (client)
+        try
         {
-            client.ReceiveTimeout = 2500;
-            client.SendTimeout = 2500;
-            using var reader = new StreamReader(client.GetStream(), Encoding.UTF8, false, leaveOpen: true);
-            using var writer = new StreamWriter(client.GetStream(), new UTF8Encoding(false), leaveOpen: true)
-                { AutoFlush = true };
-            var line = await reader.ReadLineAsync(cancellation.Token);
-            var parts = line?.Split('|');
-            if (parts is { Length: 3 } && parts[0] == "TICKETTOSS" && parts[1] == PairingCode &&
-                parts[2].Equals("PING", StringComparison.OrdinalIgnoreCase))
+            using (client)
             {
-                await writer.WriteLineAsync("OK");
-            }
-            else if (parts is { Length: 3 } && parts[0] == "TICKETTOSS" && parts[1] == PairingCode &&
-                Enum.TryParse<Outcome>(parts[2], true, out var outcome))
-            {
-                await writer.WriteLineAsync("OK");
-                OutcomeReceived?.Invoke(outcome);
-            }
-            else
-            {
-                await writer.WriteLineAsync("DENIED");
+                client.ReceiveTimeout = 2500;
+                client.SendTimeout = 2500;
+                using var reader = new StreamReader(client.GetStream(), Encoding.UTF8, false, leaveOpen: true);
+                using var writer = new StreamWriter(client.GetStream(), new UTF8Encoding(false), leaveOpen: true)
+                    { AutoFlush = true };
+                using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellation.Token);
+                timeout.CancelAfter(TimeSpan.FromSeconds(3));
+                // Bound untrusted input before allocating an arbitrary-sized line.
+                var buffer = new char[512];
+                var length = 0;
+                while (length < buffer.Length) {
+                    var read = await reader.ReadAsync(buffer.AsMemory(length, 1), timeout.Token);
+                    if (read == 0 || buffer[length] == '\n') break;
+                    length++;
+                }
+                if (length == buffer.Length) { await writer.WriteLineAsync("DENIED"); return; }
+                var line = new string(buffer, 0, length).TrimEnd('\r');
+                var parts = line.Split('|');
+                if (parts is { Length: 3 } && parts[0] == "TICKETTOSS" && parts[1] == PairingCode &&
+                    parts[2].Equals("PING", StringComparison.OrdinalIgnoreCase))
+                {
+                    await writer.WriteLineAsync("OK");
+                }
+                else if (parts.Length == 10 && parts[0] == "TICKETTOSS" && parts[1] == PairingCode &&
+                    TicketEvent.TryParse(parts, out var ticket))
+                {
+                    var accepted = receipts.Accept(ticket!, outcome => OutcomeReceived?.Invoke(outcome));
+                    await writer.WriteLineAsync(accepted ? $"OK|{ticket!.Id}" : "DENIED");
+                }
+                else if (parts is { Length: 3 } && parts[0] == "TICKETTOSS" && parts[1] == PairingCode &&
+                    Enum.TryParse<Outcome>(parts[2], true, out var outcome) && Enum.IsDefined(outcome))
+                {
+                    await writer.WriteLineAsync("OK");
+                    OutcomeReceived?.Invoke(outcome);
+                }
+                else
+                {
+                    await writer.WriteLineAsync("DENIED");
+                }
             }
         }
+        catch (OperationCanceledException) { }
+        catch (IOException) { }
+        catch (SocketException) { }
     }
 
     private static string FindLocalAddress()

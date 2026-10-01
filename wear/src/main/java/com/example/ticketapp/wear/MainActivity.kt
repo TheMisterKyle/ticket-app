@@ -1,5 +1,17 @@
 package com.example.ticketapp.wear
 
+import com.example.ticketapp.relay.Destination
+import com.example.ticketapp.relay.TicketEvent
+import com.example.ticketapp.relay.WatchTransport
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.LifecycleOwner
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.material3.TextButton
+import kotlinx.coroutines.launch
 import android.content.Context
 import android.os.Bundle
 import androidx.fragment.app.FragmentActivity
@@ -31,6 +43,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -97,6 +110,8 @@ private sealed interface WatchScreen {
     data class Rolling(val colour: TicketColour) : WatchScreen
     data class Result(val outcome: TicketOutcome) : WatchScreen
     data object EndConfirm : WatchScreen
+    data object Settings : WatchScreen
+    data class Delivery(val text: String) : WatchScreen
 }
 
 @Composable
@@ -107,6 +122,37 @@ private fun TicketTossWatchApp(
 ) {
     var screen: WatchScreen by remember {
         mutableStateOf(if (initiallyActive) WatchScreen.Ready else WatchScreen.Welcome)
+    }
+
+    val context = LocalContext.current
+    val prefs = remember { context.getSharedPreferences(SESSION_PREFS, Context.MODE_PRIVATE) }
+    var destination by remember { mutableStateOf(Destination.restore(prefs.getString("destination", null))) }
+    var connection by remember { mutableStateOf("Checking phone…") }
+    var activeEvent by remember { mutableStateOf("") }
+    val scope = rememberCoroutineScope()
+    val audio = remember { WatchAudio(context) }
+    val haptics = LocalHapticFeedback.current
+    DisposableEffect(Unit) {
+        val lifecycle = (context as LifecycleOwner).lifecycle
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_PAUSE) audio.stop()
+        }
+        lifecycle.addObserver(observer)
+        onDispose { lifecycle.removeObserver(observer); audio.stop() }
+    }
+    LaunchedEffect(isAmbient) { if (isAmbient) audio.stop() }
+    LaunchedEffect(destination, screen is WatchScreen.Ready, isAmbient) {
+        if (destination.pc && screen is WatchScreen.Ready && !isAmbient) {
+            while (true) {
+                connection = when (WatchTransport.request(context)) {
+                    "PC_READY" -> "Phone connected · PC ready"
+                    "PC_OFFLINE" -> "Phone connected · PC unavailable"
+                    "PHONE_OFFLINE" -> "Phone unavailable"
+                    else -> "Connection unavailable"
+                }
+                delay(10000)
+            }
+        }
     }
 
     MaterialTheme {
@@ -123,10 +169,32 @@ private fun TicketTossWatchApp(
 
                     WatchScreen.Ready -> ReadyScreen(
                         isAmbient = isAmbient,
-                        onRoll = { colour, index ->
+                        status = if (destination.pc) connection else "",
+                        onSettings = { screen = WatchScreen.Settings },
+                        onRoll = roll@{ colour, index ->
+                            if (screen != WatchScreen.Ready) return@roll
                             val outcome = TicketRoll.roll(colour, index)
+                            val mode = destination
+                            val event = TicketEvent.create(colour.name, outcome.awarded, outcome.probability, "WATCH", mode)
+                            activeEvent = event.id
                             screen = WatchScreen.Rolling(colour)
-                            screen = WatchScreen.Result(outcome)
+                            scope.launch {
+                                if (mode.sound) audio.play(R.raw.drumroll)
+                                val delivery = if (mode.pc) launch {
+                                    val result = WatchTransport.deliver(context, event)
+                                    if (activeEvent != event.id) return@launch
+                                    connection = if (result == "DELIVERED") "Delivered to PC" else "PC delivery failed"
+                                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                } else null
+                                delay(1000)
+                                if (mode.sound) { audio.stop(); audio.outcome(outcome) }
+                                screen = if (mode.local) WatchScreen.Result(outcome) else WatchScreen.Delivery("Sending to PC…")
+                                delivery?.join()
+                                if (activeEvent != event.id) return@launch
+                                if (!mode.local) screen = WatchScreen.Delivery(connection)
+                                delay(2400)
+                                if (activeEvent == event.id && screen !is WatchScreen.EndConfirm && screen !is WatchScreen.Settings) screen = WatchScreen.Ready
+                            }
                         },
                         onEnd = { screen = WatchScreen.EndConfirm },
                     )
@@ -135,9 +203,31 @@ private fun TicketTossWatchApp(
                     is WatchScreen.Result -> ResultScreen(
                         outcome = current.outcome,
                         isAmbient = isAmbient,
-                        onDismiss = { screen = WatchScreen.Ready },
+                        deliveryStatus = if (destination.pc) connection else "",
+                        onDismiss = { activeEvent = ""; audio.stop(); screen = WatchScreen.Ready },
                     )
 
+                    WatchScreen.Settings -> Column(
+                        Modifier.fillMaxSize().padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
+                    ) {
+                        Destination.entries.forEach { mode ->
+                            TextButton(onClick = {
+                                destination = mode
+                                prefs.edit().putString("destination", mode.storedName("WATCH")).apply()
+                                screen = WatchScreen.Ready
+                            }) { Text((if (mode == destination) "✓ " else "") + when (mode) {
+                                Destination.LOCAL_ONLY -> "Watch only"
+                                Destination.PC_ONLY -> "PC only"
+                                Destination.LOCAL_AND_PC -> "Watch and PC"
+                            }, fontSize = 12.sp) }
+                        }
+                        TextButton(onClick = { screen = WatchScreen.Ready }) { Text("BACK") }
+                    }
+                    is WatchScreen.Delivery -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text(current.text, color = Paper, fontSize = 13.sp, textAlign = TextAlign.Center)
+                    }
                     WatchScreen.EndConfirm -> EndSessionScreen(
                         onKeepGoing = { screen = WatchScreen.Ready },
                         onEnd = { onSessionChanged(false) },
@@ -181,6 +271,8 @@ private fun WelcomeScreen(onBegin: () -> Unit) {
 private fun ReadyScreen(
     isAmbient: Boolean,
     onRoll: (TicketColour, Int) -> Unit,
+    status: String,
+    onSettings: () -> Unit,
     onEnd: () -> Unit,
 ) {
     Column(
@@ -190,7 +282,10 @@ private fun ReadyScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
-            "TICKET TOSS",
+            if (status.isBlank()) "TICKET TOSS" else status,
+            modifier = Modifier.pointerInput(isAmbient) {
+                if (!isAmbient) detectTapGestures(onLongPress = { onSettings() })
+            },
             color = Paper.copy(alpha = if (isAmbient) 0.55f else 0.82f),
             fontWeight = FontWeight.Bold,
             fontSize = 11.sp,
@@ -237,6 +332,7 @@ private fun TicketGestureButton(
     modifier: Modifier = Modifier,
     onRoll: (TicketColour, Int) -> Unit,
 ) {
+    val currentRoll by rememberUpdatedState(onRoll)
     val haptics = LocalHapticFeedback.current
     val thresholdPx = with(LocalDensity.current) { 22.dp.toPx() }
     var selectedIndex by remember(colour) { mutableStateOf(TicketRoll.defaultIndex(colour)) }
@@ -278,7 +374,7 @@ private fun TicketGestureButton(
                     }
 
                     pressed = false
-                    onRoll(colour, currentIndex)
+                    currentRoll(colour, currentIndex)
                     selectedIndex = defaultIndex
                 }
             },
@@ -327,17 +423,12 @@ private fun RollingScreen(colour: TicketColour) {
 private fun ResultScreen(
     outcome: TicketOutcome,
     isAmbient: Boolean,
+    deliveryStatus: String,
     onDismiss: () -> Unit,
 ) {
     val accent = if (outcome.colour == TicketColour.GREEN) Green else Red
     val background = if (outcome.awarded) accent else Color(0xFF272A2D)
 
-    LaunchedEffect(outcome, isAmbient) {
-        if (!isAmbient) {
-            delay(2400)
-            onDismiss()
-        }
-    }
 
     Box(
         modifier = Modifier
@@ -354,6 +445,8 @@ private fun ResultScreen(
         contentAlignment = Alignment.Center,
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            if (deliveryStatus.isNotBlank()) Text(deliveryStatus,
+                color = if (outcome.awarded) Ink else Paper, fontSize = 10.sp)
             Text(
                 if (outcome.awarded) "TICKET!" else "NOPE",
                 color = if (outcome.awarded) Ink else Paper,

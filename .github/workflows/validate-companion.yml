@@ -1,0 +1,23 @@
+name: Validate Companion Protocol
+on:
+  push:
+    branches: [master]
+    paths: ["desktop-companion/**", "desktop-companion-tests/**"]
+  pull_request:
+    paths: ["desktop-companion/**", "desktop-companion-tests/**"]
+permissions:
+  contents: read
+concurrency:
+  group: validation-companion-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+      - run: dotnet run --project desktop-companion-tests/ProtocolTests.csproj
+      - run: dotnet build desktop-companion/TicketToss.Companion.csproj -p:EnableWindowsTargeting=true

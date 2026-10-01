@@ -6,6 +6,7 @@ on:
     paths:
       - "app/**"
       - "wear/**"
+      - "shared/**"
       - "build.gradle.kts"
       - "settings.gradle.kts"
       - "gradle/**"
@@ -15,6 +16,7 @@ on:
     paths:
       - "app/**"
       - "wear/**"
+      - "shared/**"
       - "build.gradle.kts"
       - "settings.gradle.kts"
       - "gradle/**"
@@ -35,6 +37,8 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
@@ -43,13 +47,20 @@ jobs:
       - name: Build and test phone and watch apps
         run: |
           chmod +x gradlew
-          ./gradlew :app:assembleDebug :wear:assembleDebug :wear:testDebugUnitTest
-      - name: Upload watch debug APK
-        if: github.event_name == 'workflow_dispatch'
+          ./gradlew :app:assembleDebug :wear:assembleDebug :app:testDebugUnitTest :wear:testDebugUnitTest
+      - name: Check development version signal
+        id: version
+        run: |
+          if git diff HEAD~1 HEAD -- app/build.gradle.kts wear/build.gradle.kts | grep -E '^\+.*version(Code|Name)' >/dev/null; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Upload development APKs
+        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && steps.version.outputs.changed == 'true')
         uses: actions/upload-artifact@v4
         with:
-          name: Ticket-Toss-Wear-debug
-          path: wear/build/outputs/apk/debug/wear-debug.apk
+          name: Ticket-Toss-Build-2-debug
+          path: |
+            app/build/outputs/apk/debug/app-debug.apk
+            wear/build/outputs/apk/debug/wear-debug.apk
           if-no-files-found: error
-
           retention-days: 3

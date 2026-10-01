@@ -9,6 +9,7 @@ public partial class MainWindow : Window
     private readonly Forms.Screen[] screens;
     private readonly CompanionServer server;
     private bool overlayBusy;
+    private readonly Queue<Outcome> pendingOutcomes = new();
 
     public MainWindow()
     {
@@ -48,13 +49,16 @@ public partial class MainWindow : Window
 
     private async Task ShowOutcomeAsync(Outcome outcome)
     {
+        pendingOutcomes.Enqueue(outcome);
         if (overlayBusy) return;
         overlayBusy = true;
         try
         {
-            var screen = screens[Math.Max(0, DisplayPicker.SelectedIndex)];
-            var overlay = new OverlayWindow(screen, PlaySoundCheck.IsChecked == true);
-            await overlay.PlayAsync(outcome);
+            while (pendingOutcomes.TryDequeue(out var next)) {
+                var screen = screens[Math.Max(0, DisplayPicker.SelectedIndex)];
+                var overlay = new OverlayWindow(screen, PlaySoundCheck.IsChecked == true);
+                await overlay.PlayAsync(next);
+            }
         }
         finally
         {

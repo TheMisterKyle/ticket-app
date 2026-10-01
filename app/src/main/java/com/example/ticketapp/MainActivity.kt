@@ -1,5 +1,8 @@
 package com.example.ticketapp
 
+import com.example.ticketapp.relay.Destination
+import com.example.ticketapp.relay.TicketEvent
+import com.example.ticketapp.relay.CompanionTransport
 import android.media.AudioAttributes
 import android.media.SoundPool
 import android.os.Bundle
@@ -41,6 +44,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -198,28 +202,46 @@ private fun TicketApp(
     val preferences = remember { context.getSharedPreferences("companion", Context.MODE_PRIVATE) }
     val scope = rememberCoroutineScope()
     var showCompanionSettings by remember { mutableStateOf(false) }
-    var phoneSounds by remember { mutableStateOf(preferences.getBoolean("phone_sounds", true)) }
+    var destination by remember { mutableStateOf(Destination.restore(preferences.getString("destination", null),
+        if (preferences.getString("host", "").isNullOrBlank()) Destination.LOCAL_ONLY else Destination.LOCAL_AND_PC)) }
+    var activeEvent by remember { mutableStateOf("") }
+    var delivery by remember { mutableStateOf("") }
+    val haptics = LocalHapticFeedback.current
 
+    androidx.compose.runtime.LaunchedEffect(destination, screen is AppScreen.Ready, showCompanionSettings) {
+        if (destination.pc && screen is AppScreen.Ready && !showCompanionSettings) {
+            while (true) {
+                delivery = if (CompanionTransport.exchange(preferences, "PING")) "PC ready" else "PC unavailable"
+                delay(10000)
+            }
+        }
+    }
     when (val current = screen) {
         AppScreen.Ready -> ReadyScreen(
             onOpenSettings = { showCompanionSettings = true },
-        ) { colour, probability ->
+        ) roll@{ colour, probability ->
+            if (screen != AppScreen.Ready) return@roll
             val won = Random.nextFloat() < probability
             val result = colour.takeIf { won }
-            if (phoneSounds) onPlayDrumroll()
-            val outcome = when (result) {
-                TicketColour.GREEN -> "GreenWin"
-                TicketColour.RED -> "RedWin"
-                null -> if (colour == TicketColour.GREEN) "GreenMiss" else "RedMiss"
+            if (destination.sound) onPlayDrumroll()
+            if (destination.pc) {
+                val event = TicketEvent.create(colour.name, won, probability, "PHONE", destination)
+                activeEvent = event.id
+                delivery = "Sending to PC…"
+                scope.launch {
+                    val delivered = CompanionTransport.deliver(preferences, event)
+                    if (activeEvent != event.id) return@launch
+                    delivery = if (delivered) "Delivered to PC" else "PC delivery failed"
+                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                }
             }
-            scope.launch { sendToCompanion(preferences, outcome) }
             screen = AppScreen.Rolling(ticket = result, attemptedColour = colour)
         }
 
         is AppScreen.Rolling -> {
             androidx.compose.runtime.LaunchedEffect(current) {
                 delay(950)
-                if (phoneSounds) onPlayOutcomeSound(current.ticket, current.attemptedColour)
+                if (destination.sound) onPlayOutcomeSound(current.ticket, current.attemptedColour)
                 screen = AppScreen.Result(
                     ticket = current.ticket,
                     attemptedColour = current.attemptedColour,
@@ -228,7 +250,12 @@ private fun TicketApp(
             ReadyScreen(onOpenSettings = {}, onRoll = { _, _ -> })
         }
 
-        is AppScreen.Result -> ResultScreen(
+        is AppScreen.Result -> if (!destination.local) {
+            androidx.compose.runtime.LaunchedEffect(current) { while (delivery == "Sending to PC…") delay(100); delay(1800); screen = AppScreen.Ready }
+            Box(Modifier.fillMaxSize().background(Background), contentAlignment = Alignment.Center) {
+                Text(delivery, color = Cream, modifier = Modifier.clickable { screen = AppScreen.Ready })
+            }
+        } else ResultScreen(
             ticket = current.ticket,
             attemptedColour = current.attemptedColour,
         ) {
@@ -236,16 +263,21 @@ private fun TicketApp(
         }
     }
 
+    if (destination.pc && (screen is AppScreen.Ready || (destination.local && screen is AppScreen.Result))) {
+        Box(Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.TopCenter) {
+            Text(delivery, color = Muted, fontSize = 12.sp)
+        }
+    }
     if (showCompanionSettings) {
         CompanionSettingsDialog(
             initialHost = preferences.getString("host", "") ?: "",
             initialCode = preferences.getString("code", "") ?: "",
-            initialPhoneSounds = phoneSounds,
+            initialDestination = destination,
             onDismiss = { showCompanionSettings = false },
-            onSave = { host, code, sounds ->
+            onSave = { host, code, mode ->
                 preferences.edit().putString("host", host.trim())
-                    .putString("code", code.trim()).putBoolean("phone_sounds", sounds).apply()
-                phoneSounds = sounds
+                    .putString("code", code.trim()).putString("destination", mode.storedName("PHONE")).apply()
+                destination = mode
                 showCompanionSettings = false
             },
             onTest = { host, code, report ->
@@ -313,14 +345,14 @@ private fun ReadyScreen(
 private fun CompanionSettingsDialog(
     initialHost: String,
     initialCode: String,
-    initialPhoneSounds: Boolean,
+    initialDestination: Destination,
     onDismiss: () -> Unit,
-    onSave: (String, String, Boolean) -> Unit,
+    onSave: (String, String, Destination) -> Unit,
     onTest: (String, String, ((String) -> Unit)) -> Unit,
 ) {
     var host by remember { mutableStateOf(initialHost) }
     var code by remember { mutableStateOf(initialCode) }
-    var phoneSounds by remember { mutableStateOf(initialPhoneSounds) }
+    var destination by remember { mutableStateOf(initialDestination) }
     var status by remember { mutableStateOf("Enter the address and code shown on the PC.") }
 
     AlertDialog(
@@ -343,9 +375,14 @@ private fun CompanionSettingsDialog(
                     label = { Text("Pairing code") },
                     singleLine = true,
                 )
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(checked = phoneSounds, onCheckedChange = { phoneSounds = it })
-                    Text("Play sounds on phone")
+                Destination.entries.forEach { mode ->
+                    TextButton(onClick = { destination = mode }) {
+                        Text((if (destination == mode) "✓ " else "") + when (mode) {
+                            Destination.LOCAL_ONLY -> "Phone only"
+                            Destination.PC_ONLY -> "PC only"
+                            Destination.LOCAL_AND_PC -> "Phone and PC"
+                        })
+                    }
                 }
                 Button(
                     onClick = {
@@ -357,7 +394,7 @@ private fun CompanionSettingsDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = { onSave(host, code, phoneSounds) }) { Text("Save") }
+            TextButton(onClick = { onSave(host, code, destination) }) { Text("Save") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     )
@@ -518,6 +555,7 @@ private fun GestureTrack(
     onStepChanged: (Int) -> Unit,
     onReleased: (Int) -> Unit,
 ) {
+    val currentReleased by rememberUpdatedState(onReleased)
     val density = LocalDensity.current
     val stepDistancePx = with(density) { 40.dp.toPx() }
 
@@ -551,7 +589,7 @@ private fun GestureTrack(
                             pressed = change.pressed
                         }
                     }
-                    onReleased(currentStep)
+                    currentReleased(currentStep)
                 }
             },
         contentAlignment = Alignment.Center,

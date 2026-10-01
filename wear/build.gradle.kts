@@ -13,8 +13,8 @@ android {
         applicationId = "com.example.ticketapp"
         minSdk = 30
         targetSdk = 37
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.2.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -32,12 +32,16 @@ android {
         targetCompatibility = JavaVersion.VERSION_11
     }
 
+    sourceSets.getByName("main").java.srcDir("../shared/src/main/java")
+    sourceSets.getByName("test").java.srcDir("../shared/src/test/java")
+
     buildFeatures {
         compose = true
     }
 }
 
 dependencies {
+    implementation("com.google.android.gms:play-services-wearable:20.0.1")
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.compose.material3)
