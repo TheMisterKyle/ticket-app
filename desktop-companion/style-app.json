@@ -2,7 +2,7 @@
   "schema_version": "1.0",
   "app_id": "ca.kyle.ticket-toss",
   "display_name": "Ticket App",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "channel": "stable",
   "runtime": {"platform": "windows", "architecture": "x64"},
   "version_discovery": {"method": "manifest", "path": "style-app.json"},
