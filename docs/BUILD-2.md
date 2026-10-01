@@ -73,3 +73,7 @@ Phone and watch results now return to the controls when local outcome playback c
 The PC-only/combined timer follows the equivalent clip duration; this protocol acknowledges desktop receipt rather than actual playback completion, so a queued projector animation or a slow network can finish later than the controller display. No desktop protocol or Style release change is included in this follow-up.
 
 Both updated APKs use version code 6. Install the phone and watch from the new matching artifact. The prior portable companion remains compatible. Physical acceptance: all four result sounds on both devices, automatic reset without touching the result, a muted device, an ambient transition during playback, and another toss immediately after reset.
+
+## Watch result linger fix
+
+The watch-only outcome assets now exclude quiet tails: green win 1.76 s, red win 1.78 s, green miss 1.50 s, red miss 0.80 s. The original miss clips included about one second of trailing quiet. A short end fade prevents clicks; result dismissal still follows actual playback completion, including the shorter matching duration in silent watch modes. Phone and desktop audio assets are unchanged. Watch version code: 7.
