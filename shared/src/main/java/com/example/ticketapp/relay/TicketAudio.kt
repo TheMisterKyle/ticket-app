@@ -36,10 +36,11 @@ class TicketAudio(private val context: Context) {
 
     suspend fun finish(resource: Int, audible: Boolean) {
         stop()
-        val length = duration(resource)
-        if (!audible || !canPlay()) { delay(length); return }
+        if (!audible || !canPlay()) { delay(duration(resource)); return }
         val media = runCatching { create(resource) }.getOrNull()
-        if (media == null) { delay(length); return }
+        if (media == null) { delay(duration(resource)); return }
+        val length = media.duration.toLong().coerceAtLeast(1)
+        durations[resource] = length
         val done = CompletableDeferred<Unit>()
         player = media
         completion = done

@@ -20,7 +20,6 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.togetherWith
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -135,17 +134,19 @@ private fun TicketTossWatchApp(
     val scope = rememberCoroutineScope()
     val audio = remember { WatchAudio(context) }
     val haptics = LocalHapticFeedback.current
+    var resumed by remember { mutableStateOf((context as LifecycleOwner).lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) }
     DisposableEffect(Unit) {
         val lifecycle = (context as LifecycleOwner).lifecycle
         val observer = LifecycleEventObserver { _, event ->
+            resumed = lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)
             if (event == Lifecycle.Event.ON_PAUSE) audio.stop()
         }
         lifecycle.addObserver(observer)
         onDispose { lifecycle.removeObserver(observer); audio.stop() }
     }
     LaunchedEffect(isAmbient) { audio.ambient = isAmbient; if (isAmbient) audio.stop() }
-    LaunchedEffect(destination, screen is WatchScreen.Ready, isAmbient) {
-        if (destination.pc && screen is WatchScreen.Ready && !isAmbient) {
+    LaunchedEffect(destination, screen is WatchScreen.Ready, isAmbient, resumed) {
+        if (destination.pc && screen is WatchScreen.Ready && !isAmbient && resumed) {
             while (true) {
                 connection = when (WatchTransport.request(context)) {
                     "PC_READY" -> "Phone connected · PC ready"
@@ -153,7 +154,7 @@ private fun TicketTossWatchApp(
                     "PHONE_OFFLINE" -> "Phone unavailable"
                     else -> "Connection unavailable"
                 }
-                delay(10000)
+                delay(30000)
             }
         }
     }
@@ -341,7 +342,7 @@ private fun TicketGestureButton(
     val thresholdPx = with(LocalDensity.current) { 22.dp.toPx() }
     var selectedIndex by remember(colour) { mutableStateOf(TicketRoll.defaultIndex(colour)) }
     var pressed by remember { mutableStateOf(false) }
-    val emphasis by animateFloatAsState(if (pressed) 1f else 0.78f, label = "press-emphasis")
+    val emphasis = if (pressed) 1f else 0.78f
     val base = if (colour == TicketColour.GREEN) GreenDark else RedDark
     val accent = if (colour == TicketColour.GREEN) Green else Red
     val label = if (colour == TicketColour.GREEN) "GREEN" else "RED"
