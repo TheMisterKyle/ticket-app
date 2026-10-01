@@ -13,7 +13,7 @@ android {
         applicationId = "com.example.ticketapp"
         minSdk = 30
         targetSdk = 37
-        versionCode = 13
+        versionCode = 14
         versionName = "0.2.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -41,6 +41,7 @@ android {
 }
 
 dependencies {
+    implementation("androidx.wear:wear-ongoing:1.1.0")
     implementation("androidx.concurrent:concurrent-futures:1.3.0")
     implementation("androidx.wear.tiles:tiles:1.6.2")
     implementation("androidx.wear.protolayout:protolayout:1.4.2")

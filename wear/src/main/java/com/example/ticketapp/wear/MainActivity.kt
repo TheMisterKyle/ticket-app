@@ -14,6 +14,11 @@ import androidx.compose.material3.TextButton
 import kotlinx.coroutines.launch
 import android.content.Context
 import android.os.Bundle
+import android.Manifest
+import android.content.Intent
+import android.os.Build
+import android.provider.Settings
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.FragmentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.animation.AnimatedContent
@@ -63,8 +68,8 @@ import androidx.wear.ambient.AmbientModeSupport
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 
-private const val SESSION_PREFS = "ticket_toss_watch"
-private const val SESSION_ACTIVE = "session_active"
+internal const val SESSION_PREFS = "ticket_toss_watch"
+internal const val SESSION_ACTIVE = "session_active"
 
 private val Green = Color(0xFF2ECC71)
 private val GreenDark = Color(0xFF123D28)
@@ -75,6 +80,10 @@ private val Paper = Color(0xFFF6F0DF)
 
 class MainActivity : FragmentActivity(), AmbientModeSupport.AmbientCallbackProvider {
     private var isAmbient by mutableStateOf(false)
+    private var sessionAvailable by mutableStateOf(false)
+    private val notificationPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) {
+        restoreSessionAccess()
+    }
     private lateinit var ambientController: AmbientModeSupport.AmbientController
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -86,11 +95,51 @@ class MainActivity : FragmentActivity(), AmbientModeSupport.AmbientCallbackProvi
             TicketTossWatchApp(
                 initiallyActive = preferences.getBoolean(SESSION_ACTIVE, false),
                 isAmbient = isAmbient,
+                sessionAvailable = sessionAvailable,
+                onEnableSessionAccess = ::enableSessionAccess,
                 onSessionChanged = { active ->
                     preferences.edit().putBoolean(SESSION_ACTIVE, active).apply()
-                    if (!active) finishAndRemoveTask()
+                    if (active) {
+                        if (ClassSessionService.canNotify(this)) restoreSessionAccess()
+                        else enableSessionAccess()
+                    } else {
+                        stopService(Intent(this, ClassSessionService::class.java))
+                        getSystemService(android.app.NotificationManager::class.java).cancel(ClassSessionService.NOTIFICATION_ID)
+                        sessionAvailable = false
+                        finishAndRemoveTask()
+                    }
                 },
             )
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        restoreSessionAccess()
+    }
+
+    private fun restoreSessionAccess() {
+        val active = getSharedPreferences(SESSION_PREFS, Context.MODE_PRIVATE).getBoolean(SESSION_ACTIVE, false)
+        sessionAvailable = active && ClassSessionService.canNotify(this)
+        if (sessionAvailable) {
+            try {
+                androidx.core.content.ContextCompat.startForegroundService(this, Intent(this, ClassSessionService::class.java))
+            } catch (_: IllegalStateException) { sessionAvailable = false }
+              catch (_: SecurityException) { sessionAvailable = false }
+        } else stopService(Intent(this, ClassSessionService::class.java))
+    }
+
+    private fun enableSessionAccess() {
+        val prefs = getSharedPreferences(SESSION_PREFS, Context.MODE_PRIVATE)
+        if (Build.VERSION.SDK_INT >= 33 &&
+            androidx.core.content.ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) !=
+            android.content.pm.PackageManager.PERMISSION_GRANTED &&
+            (!prefs.getBoolean("notification_permission_asked", false) ||
+                shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS))) {
+            prefs.edit().putBoolean("notification_permission_asked", true).apply()
+            notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, packageName))
         }
     }
 
@@ -120,6 +169,8 @@ private sealed interface WatchScreen {
 private fun TicketTossWatchApp(
     initiallyActive: Boolean,
     isAmbient: Boolean,
+    sessionAvailable: Boolean,
+    onEnableSessionAccess: () -> Unit,
     onSessionChanged: (Boolean) -> Unit,
 ) {
     var screen: WatchScreen by remember {
@@ -175,7 +226,7 @@ private fun TicketTossWatchApp(
 
                     WatchScreen.Ready -> ReadyScreen(
                         isAmbient = isAmbient,
-                        status = if (destination.pc) connection else "",
+                        status = if (!sessionAvailable) "Notifications off · watch may return home" else if (destination.pc) connection else "",
                         onSettings = { screen = WatchScreen.Settings },
                         onRoll = roll@{ colour, index ->
                             if (screen != WatchScreen.Ready) return@roll
@@ -217,6 +268,11 @@ private fun TicketTossWatchApp(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center,
                     ) {
+                        if (!sessionAvailable) {
+                            TextButton(modifier = Modifier.height(32.dp), onClick = onEnableSessionAccess) {
+                                Text("ENABLE SESSION ACCESS", fontSize = 10.sp)
+                            }
+                        }
                         Destination.entries.forEach { mode ->
                             TextButton(modifier = Modifier.height(32.dp), onClick = {
                                 destination = mode
@@ -264,7 +320,7 @@ private fun WelcomeScreen(onBegin: () -> Unit) {
         }
         Spacer(Modifier.height(8.dp))
         Text(
-            "Stays ready until you end the session",
+            "Allow notifications to keep tickets ready during class",
             color = Paper.copy(alpha = 0.58f),
             fontSize = 10.sp,
             textAlign = TextAlign.Center,
