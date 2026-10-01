@@ -77,3 +77,7 @@ Both updated APKs use version code 6. Install the phone and watch from the new m
 ## Watch result linger fix
 
 The watch-only outcome assets now exclude quiet tails: green win 1.76 s, red win 1.78 s, green miss 1.50 s, red miss 0.80 s. The original miss clips included about one second of trailing quiet. A short end fade prevents clicks; result dismissal still follows actual playback completion, including the shorter matching duration in silent watch modes. Phone and desktop audio assets are unchanged. Watch version code: 7.
+
+### Playback sequencing correction
+
+Watch drumroll now waits for MediaPlayer completion instead of cutting playback off at a wall-clock second. Watch screen transitions are immediate, so the result disappears without an exit fade. The shared audio completion watchdog allows only 150 ms beyond the measured clip duration, rather than two seconds, if a device fails to report completion. Phone version code 7; watch version code 8. Physical watch verification remains required.

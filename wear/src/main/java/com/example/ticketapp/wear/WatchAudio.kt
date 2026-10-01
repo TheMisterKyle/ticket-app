@@ -10,6 +10,7 @@ class WatchAudio(context: Context) {
         set(value) { audio.ambient = value }
     fun play(resource: Int) = audio.play(resource)
     fun stop() = audio.stop()
+    suspend fun drumroll(audible: Boolean) = audio.finish(R.raw.drumroll, audible)
     suspend fun outcome(result: TicketOutcome, audible: Boolean) = audio.finish(when {
         result.colour == TicketColour.GREEN && result.awarded -> R.raw.green_win
         result.colour == TicketColour.RED && result.awarded -> R.raw.red_win

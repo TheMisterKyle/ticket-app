@@ -17,6 +17,9 @@ import android.os.Bundle
 import androidx.fragment.app.FragmentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -160,7 +163,9 @@ private fun TicketTossWatchApp(
             modifier = Modifier.fillMaxSize(),
             color = Ink,
         ) {
-            AnimatedContent(targetState = screen, label = "watch-screen") { current ->
+            AnimatedContent(targetState = screen, transitionSpec = {
+                EnterTransition.None togetherWith ExitTransition.None
+            }, label = "watch-screen") { current ->
                 when (current) {
                     WatchScreen.Welcome -> WelcomeScreen {
                         onSessionChanged(true)
@@ -180,7 +185,6 @@ private fun TicketTossWatchApp(
                             if (mode.pc) connection = "Sending to PC…"
                             screen = WatchScreen.Rolling(colour)
                             scope.launch {
-                                if (mode.sound) audio.play(R.raw.drumroll)
                                 if (mode.pc) launch {
                                     val result = WatchTransport.deliver(context, event)
                                     if (activeEvent != event.id) return@launch
@@ -188,7 +192,7 @@ private fun TicketTossWatchApp(
                                     if (screen is WatchScreen.Delivery) screen = WatchScreen.Delivery(connection)
                                     haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                 }
-                                delay(1000)
+                                audio.drumroll(mode.sound)
                                 if (mode.local) haptics.performHapticFeedback(
                                     if (outcome.awarded) HapticFeedbackType.LongPress else HapticFeedbackType.TextHandleMove)
                                 screen = if (mode.local) WatchScreen.Result(outcome) else WatchScreen.Delivery(connection)

@@ -47,7 +47,7 @@ class TicketAudio(private val context: Context) {
         media.setOnErrorListener { _, _, _ -> done.complete(Unit); true }
         try {
             media.start()
-            withTimeoutOrNull(length + 2000) { done.await() }
+            withTimeoutOrNull(length + 150) { done.await() }
         } finally {
             if (player === media) stop()
         }
