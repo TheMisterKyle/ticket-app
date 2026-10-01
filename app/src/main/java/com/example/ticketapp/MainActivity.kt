@@ -4,7 +4,7 @@ import com.example.ticketapp.relay.Destination
 import com.example.ticketapp.relay.TicketEvent
 import com.example.ticketapp.relay.CompanionTransport
 import android.media.AudioAttributes
-import android.media.SoundPool
+import com.example.ticketapp.relay.TicketAudio
 import android.os.Bundle
 import android.view.WindowManager
 import android.content.Context
@@ -118,29 +118,11 @@ private sealed interface AppScreen {
 }
 
 class MainActivity : ComponentActivity() {
-    private lateinit var soundPool: SoundPool
-    private var greenSound = 0
-    private var redSound = 0
-    private var greenMissSound = 0
-    private var redMissSound = 0
-    private var drumrollSound = 0
+    private lateinit var audio: TicketAudio
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        soundPool = SoundPool.Builder()
-            .setMaxStreams(3)
-            .setAudioAttributes(
-                AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_GAME)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                    .build(),
-            )
-            .build()
-        greenSound = soundPool.load(this, R.raw.green_win, 1)
-        redSound = soundPool.load(this, R.raw.red_win, 1)
-        greenMissSound = soundPool.load(this, R.raw.green_miss, 1)
-        redMissSound = soundPool.load(this, R.raw.red_miss, 1)
-        drumrollSound = soundPool.load(this, R.raw.drumroll, 1)
+        audio = TicketAudio(this)
 
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         enableEdgeToEdge()
@@ -157,8 +139,13 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
-        soundPool.release()
+        audio.stop()
         super.onDestroy()
+    }
+
+    override fun onPause() {
+        audio.stop()
+        super.onPause()
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
@@ -175,27 +162,22 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun playOutcomeSound(ticket: TicketColour?, attemptedColour: TicketColour) {
-        val sound = when (ticket) {
-            TicketColour.GREEN -> greenSound
-            TicketColour.RED -> redSound
-            null -> when (attemptedColour) {
-                TicketColour.GREEN -> greenMissSound
-                TicketColour.RED -> redMissSound
-            }
+    private suspend fun playOutcomeSound(ticket: TicketColour?, attemptedColour: TicketColour, audible: Boolean) {
+        val resource = when (ticket ?: attemptedColour) {
+            TicketColour.GREEN -> if (ticket != null) R.raw.green_win else R.raw.green_miss
+            TicketColour.RED -> if (ticket != null) R.raw.red_win else R.raw.red_miss
         }
-        soundPool.play(sound, 1f, 1f, 1, 0, 1f)
+        audio.finish(resource, audible)
     }
 
-    private fun playDrumroll() {
-        soundPool.play(drumrollSound, 1f, 1f, 1, 0, 1f)
-    }
+    private fun playDrumroll() { audio.play(R.raw.drumroll) }
+
 }
 
 @Composable
 private fun TicketApp(
     onPlayDrumroll: () -> Unit,
-    onPlayOutcomeSound: (TicketColour?, TicketColour) -> Unit,
+    onPlayOutcomeSound: suspend (TicketColour?, TicketColour, Boolean) -> Unit,
 ) {
     var screen by remember { mutableStateOf<AppScreen>(AppScreen.Ready) }
     val context = LocalContext.current
@@ -241,7 +223,6 @@ private fun TicketApp(
         is AppScreen.Rolling -> {
             androidx.compose.runtime.LaunchedEffect(current) {
                 delay(950)
-                if (destination.sound) onPlayOutcomeSound(current.ticket, current.attemptedColour)
                 screen = AppScreen.Result(
                     ticket = current.ticket,
                     attemptedColour = current.attemptedColour,
@@ -250,8 +231,12 @@ private fun TicketApp(
             ReadyScreen(onOpenSettings = {}, onRoll = { _, _ -> })
         }
 
-        is AppScreen.Result -> if (!destination.local) {
-            androidx.compose.runtime.LaunchedEffect(current) { while (delivery == "Sending to PC…") delay(100); delay(1800); screen = AppScreen.Ready }
+        is AppScreen.Result -> {
+            androidx.compose.runtime.LaunchedEffect(current) {
+                onPlayOutcomeSound(current.ticket, current.attemptedColour, destination.sound)
+                if (screen == current) screen = AppScreen.Ready
+            }
+            if (!destination.local) {
             Box(Modifier.fillMaxSize().background(Background), contentAlignment = Alignment.Center) {
                 Text(delivery, color = Cream, modifier = Modifier.clickable { screen = AppScreen.Ready })
             }
@@ -260,6 +245,7 @@ private fun TicketApp(
             attemptedColour = current.attemptedColour,
         ) {
             screen = AppScreen.Ready
+        }
         }
     }
 
@@ -737,7 +723,7 @@ private fun ResultScreen(
             }
             Spacer(Modifier.height(34.dp))
             Text(
-                text = "TAP TO RESET",
+                text = "",
                 color = foreground.copy(alpha = 0.62f),
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,

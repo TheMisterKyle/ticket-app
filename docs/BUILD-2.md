@@ -65,3 +65,11 @@ Implementation source: `a5a2eb102c8f6ac648320aa3ac0b2236cd5564aa` on `master`.
 Changed modules: phone UI/settings and background watch relay; watch UI/settings/audio; shared protocol and transports; desktop protocol/server/animation queue; shared Kotlin and desktop protocol tests; targeted development validation/artifact workflows. Full implementation and acceptance instructions are above.
 
 Next step: physical acceptance on Kyle's Pixel Watch 3, paired phone, and classroom PC. Automated checks do not establish real speaker volume, wrist-raise behaviour, Bluetooth reconnection, closed-phone service delivery, display layout, or classroom audio routing. Confirm those, settings after restarting both controllers, ambient/session restoration, and deliberate End Session before promoting this development build.
+
+## Automatic result dismissal — September 30 follow-up
+
+Phone and watch results now return to the controls when local outcome playback completes. The phone no longer asks for a reset tap. Both retain an optional early-dismiss tap. Silent controller modes use the duration read from the matching outcome sound asset; they never enable local audio or reveal a PC-only outcome. Relay acknowledgement/retries continue independently and cannot hold the local ticket result on screen.
+
+The PC-only/combined timer follows the equivalent clip duration; this protocol acknowledges desktop receipt rather than actual playback completion, so a queued projector animation or a slow network can finish later than the controller display. No desktop protocol or Style release change is included in this follow-up.
+
+Both updated APKs use version code 5. Install the phone and watch from the new matching artifact. The prior portable companion remains compatible. Physical acceptance: all four result sounds on both devices, automatic reset without touching the result, a muted device, an ambient transition during playback, and another toss immediately after reset.

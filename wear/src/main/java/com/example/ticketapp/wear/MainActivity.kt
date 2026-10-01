@@ -180,21 +180,18 @@ private fun TicketTossWatchApp(
                             screen = WatchScreen.Rolling(colour)
                             scope.launch {
                                 if (mode.sound) audio.play(R.raw.drumroll)
-                                val delivery = if (mode.pc) launch {
+                                if (mode.pc) launch {
                                     val result = WatchTransport.deliver(context, event)
                                     if (activeEvent != event.id) return@launch
                                     connection = if (result == "DELIVERED") "Delivered to PC" else "PC delivery failed"
+                                    if (screen is WatchScreen.Delivery) screen = WatchScreen.Delivery(connection)
                                     haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                } else null
+                                }
                                 delay(1000)
-                                if (mode.sound) { audio.stop(); audio.outcome(outcome) }
                                 if (mode.local) haptics.performHapticFeedback(
                                     if (outcome.awarded) HapticFeedbackType.LongPress else HapticFeedbackType.TextHandleMove)
                                 screen = if (mode.local) WatchScreen.Result(outcome) else WatchScreen.Delivery("Sending to PC…")
-                                delivery?.join()
-                                if (activeEvent != event.id) return@launch
-                                if (!mode.local) screen = WatchScreen.Delivery(connection)
-                                delay(2400)
+                                audio.outcome(outcome, mode.sound)
                                 if (activeEvent == event.id && screen !is WatchScreen.EndConfirm && screen !is WatchScreen.Settings) screen = WatchScreen.Ready
                             }
                         },
