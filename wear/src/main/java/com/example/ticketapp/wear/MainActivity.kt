@@ -140,7 +140,7 @@ private fun TicketTossWatchApp(
         lifecycle.addObserver(observer)
         onDispose { lifecycle.removeObserver(observer); audio.stop() }
     }
-    LaunchedEffect(isAmbient) { if (isAmbient) audio.stop() }
+    LaunchedEffect(isAmbient) { audio.ambient = isAmbient; if (isAmbient) audio.stop() }
     LaunchedEffect(destination, screen is WatchScreen.Ready, isAmbient) {
         if (destination.pc && screen is WatchScreen.Ready && !isAmbient) {
             while (true) {
